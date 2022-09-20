@@ -1,0 +1,6 @@
+rootProject.name = 'SecuritySuiteExample'
+apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
+include ':app'
+
+include ':reactnativesecuritysuite'
+project(':reactnativesecuritysuite').projectDir = new File(rootProject.projectDir, '../../android')
