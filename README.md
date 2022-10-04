@@ -1,6 +1,6 @@
 # react-native-security-suite
 
-Security suite for React Native
+Security suite for detection android root and ios jailbreak devices
 
 ## Installation
 
@@ -11,11 +11,11 @@ npm install react-native-security-suite
 ## Usage
 
 ```js
-import { multiply } from "react-native-security-suite";
+import { deviceHasSecurityRisk } from 'react-native-security-suite';
 
 // ...
 
-const result = await multiply(3, 7);
+const result = await deviceHasSecurityRisk();
 ```
 
 ## Contributing

@@ -1,18 +1,18 @@
 import * as React from 'react';
 
 import { StyleSheet, View, Text } from 'react-native';
-import { multiply } from 'react-native-security-suite';
+import { deviceHasSecurityRisk } from 'react-native-security-suite';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+  const [hasRisk, setHasRisk] = React.useState<boolean | undefined>();
 
   React.useEffect(() => {
-    multiply(3, 7).then(setResult);
+    deviceHasSecurityRisk().then(setHasRisk);
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Text>Has risk: {hasRisk}</Text>
     </View>
   );
 }

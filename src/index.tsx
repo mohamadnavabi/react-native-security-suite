@@ -15,8 +15,10 @@ const SecuritySuite = NativeModules.SecuritySuite
           throw new Error(LINKING_ERROR);
         },
       }
-    );
-
-export function multiply(a: number, b: number): Promise<number> {
-  return SecuritySuite.multiply(a, b);
+  );
+    
+export function deviceHasSecurityRisk(): Promise<boolean> {
+  return SecuritySuite.deviceHasSecurityRisk();
 }
+
+export default SecuritySuite;
