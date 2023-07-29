@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5E555C0D2413F4C50049A1A2 /* SecuritySuite.mm in Sources */ = {isa = PBXBuildFile; fileRef = B3E7B5891CC2AC0600A0062D /* SecuritySuite.mm */; };
-		F4FF95D7245B92E800C19C63 /*  SecuritySuite.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FF95D6245B92E800C19C63 /*  SecuritySuite.swift */; };
+		48C650222A751374001FA3B0 /* StorageEncryption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C650202A751374001FA3B0 /* StorageEncryption.swift */; };
+		48C650232A751374001FA3B0 /* DataHashingMethods.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C650212A751374001FA3B0 /* DataHashingMethods.swift */; };
+		F4FF95D7245B92E800C19C63 /* SecuritySuite.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FF95D6245B92E800C19C63 /* SecuritySuite.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +26,8 @@
 
 /* Begin PBXFileReference section */
 		134814201AA4EA6300B7C361 /* libSecuritySuite.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libSecuritySuite.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		48C650202A751374001FA3B0 /* StorageEncryption.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StorageEncryption.swift; sourceTree = "<group>"; };
+		48C650212A751374001FA3B0 /* DataHashingMethods.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataHashingMethods.swift; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* SecuritySuite.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SecuritySuite.mm; sourceTree = "<group>"; };
 		F4FF95D5245B92E700C19C63 /* SecuritySuite-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SecuritySuite-Bridging-Header.h"; sourceTree = "<group>"; };
 		F4FF95D6245B92E800C19C63 /* SecuritySuite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecuritySuite.swift; sourceTree = "<group>"; };
@@ -55,6 +58,8 @@
 				F4FF95D6245B92E800C19C63 /* SecuritySuite.swift */,
 				B3E7B5891CC2AC0600A0062D /* SecuritySuite.mm */,
 				F4FF95D5245B92E700C19C63 /* SecuritySuite-Bridging-Header.h */,
+				48C650212A751374001FA3B0 /* DataHashingMethods.swift */,
+				48C650202A751374001FA3B0 /* StorageEncryption.swift */,
 				134814211AA4EA7D00B7C361 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -116,8 +121,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				48C650232A751374001FA3B0 /* DataHashingMethods.swift in Sources */,
+				48C650222A751374001FA3B0 /* StorageEncryption.swift in Sources */,
 				F4FF95D7245B92E800C19C63 /* SecuritySuite.swift in Sources */,
-				B3E7B58A1CC2AC0600A0062D /* SecuritySuite.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

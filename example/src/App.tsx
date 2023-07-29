@@ -1,18 +1,52 @@
-import * as React from 'react';
+import React, { useEffect } from 'react';
 
 import { StyleSheet, View, Text } from 'react-native';
-import { multiply } from 'react-native-security-suite';
+import {
+  getPublicKey,
+  getSharedKey,
+  encryptBySharedKey,
+  decryptBySharedKey,
+  encrypt,
+  decrypt,
+  deviceHasSecurityRisk,
+} from 'react-native-security-suite';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+  useEffect(() => {
+    (async () => {
+      try {
+        const publicKey = await getPublicKey();
+        console.log('Public key: ', publicKey);
+        /*
+         * Sending the publicKey to the server and receiving the SERVER_PUBLIC_KEY
+         * Using the SERVER_PUBLIC_KEY to generate sharedKey
+         */
+        const sharedKey = await getSharedKey('SERVER_PUBLIC_KEY');
+        console.log('Shared key: ', sharedKey);
+        // Encrypt/Decrypt by sharedKey
+        const hardEncrypted = await encryptBySharedKey('STR_FOR_ENCRYPT');
+        console.log('Encrypted result: ', hardEncrypted);
+        const hardDecrypted = await decryptBySharedKey('STR_FOR_DECRYPT');
+        console.log('Decrypted result: ', hardDecrypted);
 
-  React.useEffect(() => {
-    multiply(3, 7).then(setResult);
+        // Soft Encrypt/Decrypt without sharedKey
+        const softEncrypted = await encrypt('STR_FOR_ENCRYPT');
+        console.log('Encrypted result: ', softEncrypted);
+        const softDecrypted = await decrypt('STR_FOR_DECRYPT');
+        console.log('Decrypted result: ', softDecrypted);
+
+        // Root/Jailbreak detection
+        const isRiskyDevice = await deviceHasSecurityRisk();
+        console.log('Root/Jailbreak detection result: ', isRiskyDevice);
+      } catch (error) {
+        console.error('Catch error: ', error);
+      }
+    })();
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Text>Security solutions for Android and iOS</Text>
     </View>
   );
 }
