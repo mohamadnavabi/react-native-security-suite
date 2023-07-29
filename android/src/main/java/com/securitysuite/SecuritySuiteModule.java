@@ -5,6 +5,7 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
 import com.scottyab.rootbeer.RootBeer;
 
@@ -186,6 +187,12 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   private String getAndroidId() {
     return Settings.Secure.getString(context.getContentResolver(),
       Settings.Secure.ANDROID_ID);
+  }
+
+  @ReactMethod
+  public void fetch(String url, final ReadableMap options, Callback callback) {
+    Sslpinning sslpinning = new Sslpinning(context);
+    sslpinning.fetch(url, options, callback);
   }
 
   @ReactMethod

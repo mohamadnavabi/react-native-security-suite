@@ -16,6 +16,8 @@ RCT_EXTERN_METHOD(storageEncrypt:(NSString)input withSecretKey:(NSString*)secret
 
 RCT_EXTERN_METHOD(storageDecrypt:(NSString)input withSecretKey:(NSString*)secretKey withHardEncryption:(BOOL)hardEncryption withCallback:(RCTResponseSenderBlock)callback)
 
+RCT_EXTERN_METHOD(fetch:(NSString)url withData:(NSDictionary)data withCallback:(RCTResponseSenderBlock)callback)
+
 RCT_EXTERN_METHOD(deviceHasSecurityRisk:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
 + (BOOL)requiresMainQueueSetup

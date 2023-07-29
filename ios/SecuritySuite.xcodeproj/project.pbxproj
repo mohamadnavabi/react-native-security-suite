@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4895B17B2A7545930068E02B /* SslPinning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4895B1782A7545930068E02B /* SslPinning.swift */; };
+		4895B17C2A7545930068E02B /* DataHashingMethods.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4895B17A2A7545930068E02B /* DataHashingMethods.swift */; };
 		48C650222A751374001FA3B0 /* StorageEncryption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C650202A751374001FA3B0 /* StorageEncryption.swift */; };
 		48C650232A751374001FA3B0 /* DataHashingMethods.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C650212A751374001FA3B0 /* DataHashingMethods.swift */; };
 		F4FF95D7245B92E800C19C63 /* SecuritySuite.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FF95D6245B92E800C19C63 /* SecuritySuite.swift */; };
@@ -26,6 +28,8 @@
 
 /* Begin PBXFileReference section */
 		134814201AA4EA6300B7C361 /* libSecuritySuite.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libSecuritySuite.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		4895B1782A7545930068E02B /* SslPinning.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SslPinning.swift; sourceTree = "<group>"; };
+		4895B17A2A7545930068E02B /* DataHashingMethods.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DataHashingMethods.swift; path = "../../../../Desktop/@navabi/react-native-ssl-pinning/ios/DataHashingMethods.swift"; sourceTree = "<group>"; };
 		48C650202A751374001FA3B0 /* StorageEncryption.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StorageEncryption.swift; sourceTree = "<group>"; };
 		48C650212A751374001FA3B0 /* DataHashingMethods.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataHashingMethods.swift; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* SecuritySuite.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SecuritySuite.mm; sourceTree = "<group>"; };
@@ -60,6 +64,8 @@
 				F4FF95D5245B92E700C19C63 /* SecuritySuite-Bridging-Header.h */,
 				48C650212A751374001FA3B0 /* DataHashingMethods.swift */,
 				48C650202A751374001FA3B0 /* StorageEncryption.swift */,
+				4895B17A2A7545930068E02B /* DataHashingMethods.swift */,
+				4895B1782A7545930068E02B /* SslPinning.swift */,
 				134814211AA4EA7D00B7C361 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -122,6 +128,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				48C650232A751374001FA3B0 /* DataHashingMethods.swift in Sources */,
+				4895B17C2A7545930068E02B /* DataHashingMethods.swift in Sources */,
+				4895B17B2A7545930068E02B /* SslPinning.swift in Sources */,
 				48C650222A751374001FA3B0 /* StorageEncryption.swift in Sources */,
 				F4FF95D7245B92E800C19C63 /* SecuritySuite.swift in Sources */,
 			);

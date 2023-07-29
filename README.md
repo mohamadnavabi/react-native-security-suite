@@ -1,6 +1,7 @@
 # react-native-security-suite
 
 Security solutions for Android and iOS
+SSL Pinning
 A native implementation encryption/decryption
 Root/Jailbreak detection
 
@@ -25,9 +26,27 @@ import {
   encrypt,
   decrypt,
   deviceHasSecurityRisk,
+  fetch,
 } from 'react-native-security-suite';
 
-// ...
+// SSL Pinning
+const response = await fetch('URL', {
+  body: {},
+  headers: {},
+  certificates: [
+    /* certs */
+  ],
+  validDomains: [
+    /* your valid domain */
+  ],
+  timeout: 6000,
+});
+let responseJson = await response.json();
+console.log('SSL Pinning server response: ', responseJson);
+
+// ------- OR --------
+
+// Hard Encrypt/Decrypt with sharedKey
 const publicKey = await getPublicKey();
 console.log('Public key: ', publicKey);
 /*

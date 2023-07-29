@@ -1,7 +1,12 @@
 import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import _ from 'lodash';
-import { isJsonString } from './helpers';
+import { isJsonString, jsonParse } from './helpers';
+import type {
+  ErrorResponse,
+  Options,
+  SuccessResponse,
+} from 'react-native-security-suite';
 
 const LINKING_ERROR =
   `The package 'react-native-security-suite' doesn't seem to be linked. Make sure: \n\n` +
@@ -216,6 +221,39 @@ export const SecureStorage = {
     }
   },
 };
+
+export function fetch(
+  url: string,
+  options: Options
+): Promise<SuccessResponse | ErrorResponse> {
+  return new Promise((resolve, reject) => {
+    SecuritySuite.fetch(
+      url,
+      options,
+      (result: SuccessResponse, error: ErrorResponse) => {
+        try {
+          if (error === null) {
+            result.json = () => jsonParse(result.response);
+            resolve(result);
+          } else {
+            const errorJson = jsonParse(error.error);
+            reject({
+              json: () => errorJson,
+              error: error?.error,
+              path: errorJson?.path,
+              message: errorJson?.message,
+              code: errorJson?.code,
+              status: error?.status,
+              url: error?.url,
+            });
+          }
+        } catch (e) {
+          console.error('SSL Pinnning fetch error: ', e);
+        }
+      }
+    );
+  });
+}
 
 export function deviceHasSecurityRisk(): Promise<boolean> {
   return SecuritySuite.deviceHasSecurityRisk();

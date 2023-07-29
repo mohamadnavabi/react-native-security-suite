@@ -1,7 +1,9 @@
-import IOSSecuritySuite
 import Foundation
 import CryptoKit
 import SwiftUI
+import Security
+import CommonCrypto
+import IOSSecuritySuite
 
 @available(iOS 13.0, *)
 @objc(SecuritySuite)
@@ -122,6 +124,59 @@ class SecuritySuite: NSObject {
     
     func getDeviceId() -> String {
         return UIDevice.current.identifierForVendor!.uuidString.replacingOccurrences(of: "-", with: "", options: [], range: nil)
+    }
+    
+    @objc(fetch:withData:withCallback:)
+    func fetch(url: NSString, data: NSDictionary, callback: @escaping RCTResponseSenderBlock) -> Void {
+        let config = URLSessionConfiguration.default
+        config.httpShouldSetCookies = false
+        config.httpCookieAcceptPolicy = .never
+        config.networkServiceType = .responsiveData
+        config.shouldUseExtendedBackgroundIdleMode = true
+        
+        let sslPinning = SSLPinning(data: data)
+        
+        var request = URLRequest(url: URL(string: url as String)!)
+
+        if data["method"] != nil { request.httpMethod = data["method"] as! String } else { request.httpMethod =  "POST" }
+        if data["body"] != nil { request.httpBody = (data["body"] as! String).data(using: .utf8)! } else { request.httpBody = "".data(using: .utf8)! }
+        if data["headers"] != nil { request.allHTTPHeaderFields = data["headers"] as! [String : String] }
+        if data["timeout"] != nil { request.timeoutInterval = data["timeout"] as! TimeInterval }
+        let session = URLSession(configuration: config, delegate: sslPinning, delegateQueue: .main)
+        let task = session.dataTask(with: request) { data, response, error in
+            let response = response as? HTTPURLResponse
+            
+            if error == nil {
+                let responseCode = response?.statusCode
+                let responseString = String.init(decoding: data ?? .init(), as: UTF8.self)
+                let errorString = error?.localizedDescription
+                let responseJSON = try? JSONSerialization.jsonObject(with: data!, options: [])
+
+                var result:NSMutableDictionary = [
+                    "status": response?.statusCode,
+                    "url": url,
+                ]
+                if errorString == nil && responseCode! < 400 {
+                    result["response"] = responseString
+                    result["responseJSON"] = responseJSON
+                    callback([result, NSNull()])
+                } else {
+                    result["error"] = responseString
+                    result["errorJSON"] = responseJSON
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: result)
+                        callback([NSNull(), result])
+                    } catch {
+                        callback([NSNull(), "JSON_PARSE_ERROR"])
+                    }
+                }
+            } else {
+                print("test", error)
+                callback([NSNull(), "MUST_BE_UPDATE"])
+            }
+        }
+        
+        task.resume()
     }
 
     @objc(deviceHasSecurityRisk:withRejecter:)

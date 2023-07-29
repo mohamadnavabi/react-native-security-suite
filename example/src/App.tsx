@@ -9,12 +9,27 @@ import {
   encrypt,
   decrypt,
   deviceHasSecurityRisk,
+  fetch,
 } from 'react-native-security-suite';
 
 export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        const response = await fetch('URL', {
+          body: {},
+          headers: {},
+          certificates: [
+            /* certs */
+          ],
+          validDomains: [
+            /* your valid domain */
+          ],
+          timeout: 6000,
+        });
+        let responseJson = await response.json();
+        console.log('SSL Pinning server response: ', responseJson);
+
         const publicKey = await getPublicKey();
         console.log('Public key: ', publicKey);
         /*
