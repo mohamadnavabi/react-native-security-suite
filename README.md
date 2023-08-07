@@ -1,9 +1,12 @@
 # react-native-security-suite
 
-Security solutions for Android and iOS
-SSL Pinning
-A native implementation encryption/decryption
-Root/Jailbreak detection
+React Native security solutions for both Android and iOS
+
+<ol>
+<li>SSL Pinning</li>
+<li>Encryption/Decryption</li>
+<li>Root/Jailbreak detection</li>
+</ol>
 
 ## Installation
 
@@ -17,6 +20,27 @@ npm install react-native-security-suite
 
 ## Usage
 
+1. SSL Pinning example:
+```js
+import {
+  fetch,
+} from 'react-native-security-suite';
+
+const response = await fetch('URL', {
+  body: {},
+  headers: {},
+  certificates: [
+    /* certificates */
+  ],
+  validDomains: [
+    /* your valid domains */
+  ],
+  timeout: 6000,
+});
+console.log('server response: ', response.json());
+```
+\
+2. Encryption/Decryption example(with key exchange or without key exchange): 
 ```js
 import {
   getPublicKey,
@@ -25,26 +49,7 @@ import {
   decryptBySharedKey,
   encrypt,
   decrypt,
-  deviceHasSecurityRisk,
-  fetch,
 } from 'react-native-security-suite';
-
-// SSL Pinning
-const response = await fetch('URL', {
-  body: {},
-  headers: {},
-  certificates: [
-    /* certs */
-  ],
-  validDomains: [
-    /* your valid domain */
-  ],
-  timeout: 6000,
-});
-let responseJson = await response.json();
-console.log('SSL Pinning server response: ', responseJson);
-
-// ------- OR --------
 
 // Hard Encrypt/Decrypt with sharedKey
 const publicKey = await getPublicKey();
@@ -55,7 +60,8 @@ console.log('Public key: ', publicKey);
  */
 const sharedKey = await getSharedKey('SERVER_PUBLIC_KEY');
 console.log('Shared key: ', sharedKey);
-// Encrypt/Decrypt by sharedKey
+
+// 1. Hard Encrypt/Decrypt by sharedKey
 const hardEncrypted = await encryptBySharedKey('STR_FOR_ENCRYPT');
 console.log('Encrypted result: ', hardEncrypted);
 const hardDecrypted = await decryptBySharedKey('STR_FOR_DECRYPT');
@@ -63,13 +69,19 @@ console.log('Decrypted result: ', hardDecrypted);
 
 // ------- OR --------
 
-// Soft Encrypt/Decrypt without sharedKey
+// 2. Soft Encrypt/Decrypt without sharedKey
 const softEncrypted = await encrypt('STR_FOR_ENCRYPT');
 console.log('Encrypted result: ', softEncrypted);
 const softDecrypted = await decrypt('STR_FOR_DECRYPT');
 console.log('Decrypted result: ', softDecrypted);
+```
+\
+3. Root/Jailbreak detection example:
+```js
+import {
+  deviceHasSecurityRisk,
+} from 'react-native-security-suite';
 
-// Root/Jailbreak detection
 const isRiskyDevice = await deviceHasSecurityRisk();
 console.log('Root/Jailbreak detection result: ', isRiskyDevice);
 ```
