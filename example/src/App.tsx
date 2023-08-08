@@ -10,26 +10,38 @@ import {
   decrypt,
   deviceHasSecurityRisk,
   fetch,
+  SecureStorage,
 } from 'react-native-security-suite';
 
 export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        /*
         const response = await fetch('URL', {
-          body: {},
-          headers: {},
+          method: 'GET',
+          body: undefined,
+          headers: {
+            'Content-Type': 'application/json',
+            'Date': new Date().toUTCString(),
+          },
           certificates: [
-            /* certs */
+            // certs
           ],
           validDomains: [
-            /* your valid domain */
+            // your valid domain
           ],
           timeout: 6000,
         });
-        let responseJson = await response.json();
+        const responseJson = await response.json();
         console.log('SSL Pinning server response: ', responseJson);
+        */
 
+        // SecureStorage
+        SecureStorage.setItem('key', 'value');
+        console.log(await SecureStorage.getItem('key'));
+
+        // Key exchange
         const publicKey = await getPublicKey();
         console.log('Public key: ', publicKey);
         /*

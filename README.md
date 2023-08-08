@@ -4,6 +4,7 @@ React Native security solutions for both Android and iOS
 
 <ol>
 <li>SSL Pinning</li>
+<li>Secure storage</li>
 <li>Encryption/Decryption</li>
 <li>Root/Jailbreak detection</li>
 </ol>
@@ -21,12 +22,12 @@ npm install react-native-security-suite
 ## Usage
 
 1. SSL Pinning example:
+
 ```js
-import {
-  fetch,
-} from 'react-native-security-suite';
+import { fetch } from 'react-native-security-suite';
 
 const response = await fetch('URL', {
+  method: 'GET',
   body: {},
   headers: {},
   certificates: [
@@ -39,8 +40,20 @@ const response = await fetch('URL', {
 });
 console.log('server response: ', response.json());
 ```
+
 \
-2. Encryption/Decryption example(with key exchange or without key exchange): 
+2. Secure storage example:
+
+```js
+import { SecureStorage } from 'react-native-security-suite';
+
+SecureStorage.setItem('key', 'value');
+console.log(await SecureStorage.getItem('key'));
+```
+
+\
+3. Encryption/Decryption example(with key exchange or without key exchange):
+
 ```js
 import {
   getPublicKey,
@@ -75,12 +88,12 @@ console.log('Encrypted result: ', softEncrypted);
 const softDecrypted = await decrypt('STR_FOR_DECRYPT');
 console.log('Decrypted result: ', softDecrypted);
 ```
+
 \
-3. Root/Jailbreak detection example:
+4. Root/Jailbreak detection example:
+
 ```js
-import {
-  deviceHasSecurityRisk,
-} from 'react-native-security-suite';
+import { deviceHasSecurityRisk } from 'react-native-security-suite';
 
 const isRiskyDevice = await deviceHasSecurityRisk();
 console.log('Root/Jailbreak detection result: ', isRiskyDevice);
