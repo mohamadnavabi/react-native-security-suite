@@ -11,6 +11,11 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
+import com.moczul.ok2curl.modifier.HeaderModifier;
+import com.securitysuite.modifier.Base64Decoder;
+import com.securitysuite.modifier.BasicAuthorizationHeaderModifier;
+import com.moczul.ok2curl.Configuration;
+import com.moczul.ok2curl.CurlInterceptor;
 
 import org.json.JSONException;
 
@@ -22,7 +27,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +47,7 @@ public class Sslpinning {
   private static String content_type = "application/json; charset=utf-8";
   public static MediaType mediaType = MediaType.parse(content_type);
   String responseBodyString = "{}";
+  private static AndroidLogger curl = null;
 
   public Sslpinning(ReactApplicationContext context) {
     this.context = context;
@@ -94,6 +102,12 @@ public class Sslpinning {
 
         output.putInt("status", responseCode);
         output.putString("url", request.url().toString());
+        output.putString("curl", curl.getCurl());
+
+        // response time
+        long tx = response.sentRequestAtMillis();
+        long rx = response.receivedResponseAtMillis();
+        output.putString("duration", (rx - tx) + "ms");
 
         if (!response.isSuccessful() || responseCode >= 400) {
           output.putString("error", responseBodyString);
@@ -122,26 +136,39 @@ public class Sslpinning {
 
     ReadableArray hashes = options.getArray("certificates");
     for (int i = 0; i < hashes.size(); i++) {
-      certificatePinner.add(hostname, "sha256/" + hashes.getString(i));
+      certificatePinner.add(hostname, hashes.getString(i));
     }
 
     return certificatePinner.build();
   }
 
   private OkHttpClient getClient(ReadableMap options, CertificatePinner certificatePinner) throws JSONException {
-      if (options.hasKey("timeout")) {
+    CurlInterceptor curlInterceptor = handleCurl();
+
+    if (options.hasKey("timeout")) {
         int timeout = options.getInt("timeout");
         return new OkHttpClient.Builder()
           .connectTimeout(timeout, TimeUnit.MILLISECONDS)
           .readTimeout(timeout, TimeUnit.MILLISECONDS)
           .writeTimeout(timeout, TimeUnit.MILLISECONDS)
           .certificatePinner(certificatePinner)
+          .addInterceptor(curlInterceptor)
           .build();
       } else {
         return new OkHttpClient.Builder()
           .certificatePinner(certificatePinner)
           .build();
       }
+  }
+
+  private CurlInterceptor handleCurl() {
+    BasicAuthorizationHeaderModifier modifier = new BasicAuthorizationHeaderModifier(new Base64Decoder());
+    List<HeaderModifier> headerModifiers = new ArrayList<>();
+    headerModifiers.add(modifier);
+    Configuration config = new Configuration(headerModifiers);
+    CurlInterceptor curlInterceptor = new CurlInterceptor(curl = new AndroidLogger(), config);
+
+    return curlInterceptor;
   }
 
   private static String getHostname(String url) throws URISyntaxException {

@@ -1,4 +1,8 @@
+apply plugin: "kotlin-android"
+
 buildscript {
+  def kotlin_version = rootProject.ext.has('kotlinVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['SecuritySuite_kotlinVersion']
+
   repositories {
     google()
     mavenCentral()
@@ -6,6 +10,7 @@ buildscript {
 
   dependencies {
     classpath "com.android.tools.build:gradle:7.2.1"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
 
@@ -84,6 +89,7 @@ repositories {
   jcenter()
 }
 
+def kotlin_version = getExtOrDefault('kotlinVersion')
 
 dependencies {
   // For < 0.71, this will be from the local maven repo
@@ -92,6 +98,8 @@ dependencies {
   implementation "com.facebook.react:react-native:+"
   implementation "com.squareup.okhttp3:okhttp:3.0.1"
   implementation "com.scottyab:rootbeer-lib:0.1.0"
+  implementation "com.github.mrmike:ok2curl:0.8.0"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }
 
 if (isNewArchitectureEnabled()) {

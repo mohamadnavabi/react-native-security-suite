@@ -17,25 +17,24 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        /*
         const response = await fetch('URL', {
-          method: 'GET',
-          body: undefined,
+          method: 'GET', // or any http methods
           headers: {
             'Content-Type': 'application/json',
-            'Date': new Date().toUTCString(),
           },
+          body: undefined,
           certificates: [
-            // certs
+            // certificates
+            'sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=',
           ],
           validDomains: [
-            // your valid domain
+            // your valid domains
+            'example.com',
           ],
           timeout: 6000,
         });
         const responseJson = await response.json();
         console.log('SSL Pinning server response: ', responseJson);
-        */
 
         // SecureStorage
         SecureStorage.setItem('key', 'value');

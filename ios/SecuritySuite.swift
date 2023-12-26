@@ -136,6 +136,7 @@ class SecuritySuite: NSObject {
         
         let sslPinning = SSLPinning(data: data)
         
+        let startTime = Date()
         var request = URLRequest(url: URL(string: url as String)!)
 
         if data["method"] != nil { request.httpMethod = data["method"] as! String } else { request.httpMethod =  "POST" }
@@ -158,6 +159,8 @@ class SecuritySuite: NSObject {
                 ]
                 if errorString == nil && responseCode! < 400 {
                     result["response"] = responseString
+                    result["curl"] = request.cURL();
+                    result["duration"] = "\(Int(Date().timeIntervalSince(startTime) * 1000))ms"
                     result["responseJSON"] = responseJSON
                     callback([result, NSNull()])
                 } else {

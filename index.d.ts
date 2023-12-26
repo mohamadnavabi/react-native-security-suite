@@ -1,3 +1,5 @@
+import type { EventEmitter } from 'events';
+
 interface SecureStorage {
   setItem: (key: string, value: string) => Promise;
   getItem: (key: string) => Promise;
@@ -46,6 +48,7 @@ declare module 'react-native-security-suite' {
   export interface SuccessResponse extends Response {
     response: string;
     responseJSON: Promise<{ [key: string]: any }>;
+    curl: string;
   }
 
   export interface ErrorResponse extends Response {
@@ -53,6 +56,7 @@ declare module 'react-native-security-suite' {
     path: string;
     message: string;
     code: string;
+    curl: string;
   }
 
   interface Header {
@@ -77,6 +81,8 @@ declare module 'react-native-security-suite' {
    */
 
   export async function deviceHasSecurityRisk(): Promise<boolean>;
+
+  export const SSEventEmitter: EventEmitter;
 
   export default SecuritySuite;
 }

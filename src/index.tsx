@@ -7,6 +7,7 @@ import type {
   Options,
   SuccessResponse,
 } from 'react-native-security-suite';
+import { EventEmitter } from 'events';
 
 const LINKING_ERROR =
   `The package 'react-native-security-suite' doesn't seem to be linked. Make sure: \n\n` +
@@ -231,6 +232,8 @@ export function fetch(
       url,
       options,
       (result: SuccessResponse, error: ErrorResponse) => {
+        SSEventEmitter.emit('fetch', { url, options, result, error });
+
         try {
           if (error === null) {
             result.json = () => jsonParse(result.response);
@@ -245,6 +248,7 @@ export function fetch(
               code: errorJson?.code,
               status: error?.status,
               url: error?.url,
+              curl: error?.curl,
             });
           }
         } catch (e) {
@@ -258,5 +262,7 @@ export function fetch(
 export function deviceHasSecurityRisk(): Promise<boolean> {
   return SecuritySuite.deviceHasSecurityRisk();
 }
+
+export const SSEventEmitter = new EventEmitter();
 
 export default SecuritySuite;
