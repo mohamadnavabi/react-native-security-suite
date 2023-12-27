@@ -2,12 +2,49 @@ import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import _ from 'lodash';
 import { isJsonString, jsonParse } from './helpers';
-import type {
-  ErrorResponse,
-  Options,
-  SuccessResponse,
-} from 'react-native-security-suite';
 import { EventEmitter } from 'events';
+
+/*
+ * SSL Pinnning start
+ */
+interface Response {
+  status: number;
+  url: string;
+  json: () => Promise<{ [key: string]: any }>;
+  curl: string;
+  duration: string;
+}
+
+export interface SuccessResponse extends Response {
+  response: string;
+  responseJSON: Promise<{ [key: string]: any }>;
+}
+
+export interface ErrorResponse extends Response {
+  error: string;
+  path: string;
+  message: string;
+  code: string;
+}
+
+interface Header {
+  [key: string]: string;
+}
+
+export interface Options {
+  body?: string | object;
+  headers: Header;
+  method?: 'DELETE' | 'GET' | 'POST' | 'PUT';
+  certificates?: string[];
+  validDomains?: string[];
+  timeout?: number;
+}
+
+export interface FetchEventResponse {
+  url: string;
+  options: Options;
+  response: SuccessResponse | ErrorResponse;
+}
 
 const LINKING_ERROR =
   `The package 'react-native-security-suite' doesn't seem to be linked. Make sure: \n\n` +
@@ -232,7 +269,11 @@ export function fetch(
       url,
       options,
       (result: SuccessResponse, error: ErrorResponse) => {
-        SSEventEmitter.emit('fetch', { url, options, result, error });
+        SSEventEmitter.emit('fetch', {
+          url,
+          options,
+          response: result || error,
+        });
 
         try {
           if (error === null) {

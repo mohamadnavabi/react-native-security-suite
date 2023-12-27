@@ -24,7 +24,6 @@ npm install react-native-security-suite
 ## Usage
 
 \
-
 1. Android Root or iOS Jailbreak devices detection example:
 
 ```js
@@ -85,6 +84,7 @@ const hardDecrypted = await decryptBySharedKey('STR_FOR_DECRYPT');
 console.log('Decrypted result: ', hardDecrypted);
 ```
 
+\
 5. SSL Pinning example:
 
 ```js

@@ -1,5 +1,3 @@
-import type { EventEmitter } from 'events';
-
 interface SecureStorage {
   setItem: (key: string, value: string) => Promise;
   getItem: (key: string) => Promise;
@@ -14,27 +12,27 @@ interface SecureStorage {
 }
 
 declare module 'react-native-security-suite' {
-  export async function getPublicKey(): Promise<string>;
+  function getPublicKey(): Promise<string>;
 
-  export async function getSharedKey(serverPublicKey: string): Promise<string>;
+  function getSharedKey(serverPublicKey: string): Promise<string>;
 
-  export async function encryptBySharedKey(input: string): Promise<string>;
+  function encryptBySharedKey(input: string): Promise<string>;
 
-  export async function decryptBySharedKey(input: string): Promise<string>;
+  function decryptBySharedKey(input: string): Promise<string>;
 
-  export async function encrypt(
+  function encrypt(
     input: string,
     hardEncryption?: boolean,
     secretKey?: string | null
   ): Promise<string>;
 
-  export async function decrypt(
+  function decrypt(
     input: string,
     hardEncryption?: boolean,
     secretKey?: string | null
   ): Promise<string>;
 
-  export const SecureStorage: SecureStorage;
+  const SecureStorage: SecureStorage;
 
   /*
    * SSL Pinnning start
@@ -43,36 +41,42 @@ declare module 'react-native-security-suite' {
     status: number;
     url: string;
     json: () => Promise<{ [key: string]: any }>;
+    curl: string;
+    duration: string;
   }
 
-  export interface SuccessResponse extends Response {
+  interface SuccessResponse extends Response {
     response: string;
     responseJSON: Promise<{ [key: string]: any }>;
-    curl: string;
   }
 
-  export interface ErrorResponse extends Response {
+  interface ErrorResponse extends Response {
     error: string;
     path: string;
     message: string;
     code: string;
-    curl: string;
   }
 
   interface Header {
-    [headerName: string]: string;
+    [key: string]: string;
   }
 
-  export interface Options {
+  interface Options {
     body?: string | object;
-    headers?: Header;
+    headers: Header;
     method?: 'DELETE' | 'GET' | 'POST' | 'PUT';
     certificates?: string[];
     validDomains?: string[];
     timeout?: number;
   }
 
-  export async function fetch(
+  interface FetchEventResponse {
+    url: string;
+    options: Options;
+    response: SuccessResponse | ErrorResponse;
+  }
+
+  async function fetch(
     url: string,
     options: Options
   ): Promise<SuccessResponse | ErrorResponse>;
@@ -80,9 +84,7 @@ declare module 'react-native-security-suite' {
    * SSL Pinnning end
    */
 
-  export async function deviceHasSecurityRisk(): Promise<boolean>;
+  async function deviceHasSecurityRisk(): Promise<boolean>;
 
-  export const SSEventEmitter: EventEmitter;
-
-  export default SecuritySuite;
+  const SSEventEmitter: EventEmitter;
 }
