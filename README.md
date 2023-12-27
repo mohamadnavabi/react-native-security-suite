@@ -23,7 +23,6 @@ npm install react-native-security-suite
 
 ## Usage
 
-\
 1. Android Root or iOS Jailbreak devices detection example:
 
 ```js
@@ -37,7 +36,6 @@ console.log('Root/Jailbreak detection result: ', isRiskyDevice);
 2. Text Encryption/Decryption example:
 
 ```js
-//
 const softEncrypted = await encrypt('STR_FOR_ENCRYPT');
 console.log('Encrypted result: ', softEncrypted);
 const softDecrypted = await decrypt('STR_FOR_DECRYPT');
@@ -67,7 +65,6 @@ import {
   decrypt,
 } from 'react-native-security-suite';
 
-// Hard Encrypt/Decrypt with sharedKey
 const publicKey = await getPublicKey();
 console.log('Public key: ', publicKey);
 /*
@@ -77,7 +74,6 @@ console.log('Public key: ', publicKey);
 const sharedKey = await getSharedKey('SERVER_PUBLIC_KEY');
 console.log('Shared key: ', sharedKey);
 
-// 1. Hard Encrypt/Decrypt by sharedKey
 const hardEncrypted = await encryptBySharedKey('STR_FOR_ENCRYPT');
 console.log('Encrypted result: ', hardEncrypted);
 const hardDecrypted = await decryptBySharedKey('STR_FOR_DECRYPT');
@@ -93,18 +89,11 @@ import { fetch } from 'react-native-security-suite';
 const response = await fetch('URL', {
   method: 'GET', // or any http methods
   headers: {
-    /* your request header */
     'Content-Type': 'application/json',
   },
   body: undefiend,
-  certificates: [
-    /* certificates */
-    'sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=',
-  ],
-  validDomains: [
-    /* your valid domains */
-    'example.com',
-  ],
+  certificates: ['sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX='],
+  validDomains: ['example.com'],
   timeout: 6000,
 });
 console.log('server response: ', response.json());
