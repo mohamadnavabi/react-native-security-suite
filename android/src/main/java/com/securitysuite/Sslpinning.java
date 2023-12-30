@@ -136,7 +136,7 @@ public class Sslpinning {
 
     ReadableArray hashes = options.getArray("certificates");
     for (int i = 0; i < hashes.size(); i++) {
-      certificatePinner.add(hostname, hashes.getString(i));
+      certificatePinner.add(hostname, "sha256/" + hashes.getString(i).replaceAll("sha256/", ""));
     }
 
     return certificatePinner.build();
