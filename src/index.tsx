@@ -121,48 +121,49 @@ export const decrypt = (
   });
 
 export const SecureStorage = {
-  setItem: async (key: string, value: string) => {
+  setItem: async (key: string, value: string): Promise<void> => {
     try {
       const encryptedKey = await encrypt(key, false);
       const encryptedValue = await encrypt(value);
       return AsyncStorage.setItem(encryptedKey, encryptedValue);
     } catch (e) {
-      return e;
+      console.error('setItem error: ', e);
     }
   },
-  getItem: async (key: string) => {
+  getItem: async (key: string): Promise<string | null> => {
     try {
       const encryptedKey = await encrypt(key, false);
       const encryptedData = await AsyncStorage.getItem(encryptedKey);
       return decrypt(encryptedData ?? '');
     } catch (e) {
-      return e;
+      console.error('getItem error: ', e);
+      return '';
     }
   },
-  mergeItem: async (key: string, value: string) => {
+  mergeItem: async (key: string, value: string): Promise<void> => {
     try {
       const encryptedKey = await encrypt(key, false);
       const encryptedData = await AsyncStorage.getItem(encryptedKey);
       const data = await decrypt(encryptedData ?? '');
-      if (!isJsonString(data) || !isJsonString(value)) return null;
+      if (!isJsonString(data) || !isJsonString(value)) return;
       const mergedData = await JSON.stringify(
         _.merge(JSON.parse(data), JSON.parse(value))
       );
       const encryptedValue = await encrypt(mergedData);
       return AsyncStorage.setItem(encryptedKey, encryptedValue);
     } catch (e) {
-      return e;
+      console.error('mergeItem error: ', e);
     }
   },
-  removeItem: async (key: string) => {
+  removeItem: async (key: string): Promise<void> => {
     try {
       const encryptedKey = await encrypt(key, false);
       return AsyncStorage.removeItem(encryptedKey);
     } catch (e) {
-      return e;
+      console.error('removeItem error: ', e);
     }
   },
-  getAllKeys: async () => {
+  getAllKeys: async (): Promise<readonly string[]> => {
     try {
       const encryptedKeys = await AsyncStorage.getAllKeys();
       return await Promise.all(
@@ -172,12 +173,11 @@ export const SecureStorage = {
         })
       );
     } catch (e) {
-      return e;
+      console.error('getAllKeys error: ', e);
+      return [];
     }
   },
-  multiSet: async (
-    keyValuePairs: Array<Array<string>>
-  ): Promise<void | string[][]> => {
+  multiSet: async (keyValuePairs: Array<Array<string>>): Promise<void> => {
     try {
       const encryptedKeyValuePairs: any = await Promise.all(
         keyValuePairs.map(async (item: Array<string>) => {
@@ -195,9 +195,11 @@ export const SecureStorage = {
       console.error('multiSet error: ', e);
     }
   },
-  multiGet: async (keys: Array<string>) => {
+  multiGet: async (
+    keys: Array<string>
+  ): Promise<readonly [string, string | null][]> => {
     try {
-      if (!Array.isArray(keys)) return null;
+      if (!Array.isArray(keys)) return [];
       const encryptedKeys = await Promise.all(
         keys.map(
           async (item: string): Promise<string> => await encrypt(item, false)
@@ -206,7 +208,7 @@ export const SecureStorage = {
       const encryptedItems = await AsyncStorage.multiGet(encryptedKeys);
       return await Promise.all(
         encryptedItems && encryptedItems.length
-          ? encryptedItems.map(async (item: any): Promise<string[]> => {
+          ? encryptedItems.map(async (item: any): Promise<[string, string]> => {
               const decryptedKey = await decrypt(item[0], false);
               const decryptedalue = await decrypt(item[1]);
               return [decryptedKey, decryptedalue];
@@ -214,12 +216,13 @@ export const SecureStorage = {
           : []
       );
     } catch (e) {
-      return e;
+      console.error('multiGet error: ', e);
+      return [];
     }
   },
-  multiMerge: async (keyValuePairs: Array<Array<string>>) => {
+  multiMerge: async (keyValuePairs: Array<Array<string>>): Promise<void> => {
     try {
-      return keyValuePairs.map(async (item: Array<string>) => {
+      keyValuePairs.map(async (item: Array<string>) => {
         if (item.length === 2 && item[0] && item[1]) {
           const encryptedKey = await encrypt(item[0], false);
           const encryptedData = await AsyncStorage.getItem(item[0]);
@@ -235,10 +238,10 @@ export const SecureStorage = {
         return null;
       });
     } catch (e) {
-      return e;
+      console.error('multiMerge error: ', e);
     }
   },
-  multiRemove: async (keys: Array<string>) => {
+  multiRemove: async (keys: Array<string>): Promise<void> => {
     try {
       if (!Array.isArray(keys)) return keys;
       const encryptedKeys = await Promise.all(
@@ -248,14 +251,14 @@ export const SecureStorage = {
       );
       return AsyncStorage.multiRemove(encryptedKeys);
     } catch (e) {
-      return e;
+      console.error('multiRemove error: ', e);
     }
   },
-  clear: async () => {
+  clear: async (): Promise<void> => {
     try {
       return AsyncStorage.clear();
     } catch (e) {
-      return e;
+      console.error('clear error: ', e);
     }
   },
 };

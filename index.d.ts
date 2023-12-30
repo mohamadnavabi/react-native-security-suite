@@ -1,14 +1,16 @@
 interface SecureStorage {
-  setItem: (key: string, value: string) => Promise;
-  getItem: (key: string) => Promise;
-  mergeItem: (key: string, value: string) => Promise;
-  removeItem: (key: string) => Promise;
-  getAllKeys: () => Promise;
-  multiGet: (keys: Array<string>) => Promise;
-  multiSet: (keyValuePairs: Array<Array<string>>) => Promise;
-  multiMerge: (keyValuePairs: Array<Array<string>>) => Promise;
-  multiRemove: (keys: Array<string>) => Promise;
-  clear: () => Promise;
+  setItem: (key: string, value: string) => Promise<void>;
+  getItem: (key: string) => Promise<string | null>;
+  mergeItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
+  getAllKeys: () => Promise<readonly string[]>;
+  multiGet: (
+    keys: Array<string>
+  ) => Promise<readonly [string, string | null][]>;
+  multiSet: (keyValuePairs: Array<Array<string>>) => Promise<void>;
+  multiMerge: (keyValuePairs: Array<Array<string>>) => Promise<void>;
+  multiRemove: (keys: Array<string>) => Promise<void>;
+  clear: () => Promise<void>;
 }
 
 declare module 'react-native-security-suite' {
