@@ -43,7 +43,18 @@ export interface Options {
 export interface FetchEventResponse {
   url: string;
   options: Options;
-  response: SuccessResponse | ErrorResponse;
+  response: {
+    response: string;
+    error: string;
+    path: string;
+    message: string;
+    code: string;
+    status: number;
+    url: string;
+    json: () => Promise<{ [key: string]: any }>;
+    curl: string;
+    duration: string;
+  };
 }
 
 const LINKING_ERROR =
