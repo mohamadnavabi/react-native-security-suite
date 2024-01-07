@@ -297,13 +297,10 @@ export function fetch(
             const errorJson = jsonParse(error.error);
             reject({
               json: () => errorJson,
-              error: error?.error,
-              path: errorJson?.path,
-              message: errorJson?.message,
-              code: errorJson?.code,
               status: error?.status,
               url: error?.url,
               curl: error?.curl,
+              ...errorJson,
             });
           }
         } catch (e) {
