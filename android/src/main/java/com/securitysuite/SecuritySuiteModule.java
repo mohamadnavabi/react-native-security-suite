@@ -41,8 +41,8 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   public static final String NAME = "SecuritySuite";
   private ReactApplicationContext context;
 
-  KeyPairGenerator kpg;
-  KeyPair kp;
+  KeyPairGenerator keyPairGenerator;
+  KeyPair keyPair;
   PublicKey publicKey;
   PublicKey serverPublicKey;
   PrivateKey privateKey;
@@ -57,12 +57,12 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   private void generateKeyPair() {
     try {
-      kpg = KeyPairGenerator.getInstance("EC");
+      keyPairGenerator = KeyPairGenerator.getInstance("EC");
       ECGenParameterSpec prime256v1ParamSpec = new ECGenParameterSpec("secp256r1");
-      kpg.initialize(prime256v1ParamSpec);
-      kp = kpg.genKeyPair();
-      publicKey = kp.getPublic();
-      privateKey = kp.getPrivate();
+      keyPairGenerator.initialize(prime256v1ParamSpec);
+      keyPair = keyPairGenerator.genKeyPair();
+      publicKey = keyPair.getPublic();
+      privateKey = keyPair.getPrivate();
     } catch (Exception e) {
       Log.e("generateKeyPair Error: ", String.valueOf(e));
     }
@@ -96,7 +96,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
       X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.decode(serverPK.getBytes(), Base64.DEFAULT));  // Change ASN1 to publicKey
       KeyFactory keyFactory = KeyFactory.getInstance("EC");
       serverPublicKey = keyFactory.generatePublic(keySpec);
-      secretKey = agreeSecretKey(kp.getPrivate(), serverPublicKey, true);
+      secretKey = agreeSecretKey(keyPair.getPrivate(), serverPublicKey, true);
       sharedKey = Base64.encodeToString(secretKey.getEncoded(), Base64.DEFAULT);
       promise.resolve(sharedKey);
     } catch (Exception e) {

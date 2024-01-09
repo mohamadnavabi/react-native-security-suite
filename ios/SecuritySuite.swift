@@ -18,7 +18,7 @@ class SecuritySuite: NSObject {
         do {
             privateKey = P256.KeyAgreement.PrivateKey().rawRepresentation.base64EncodedString()
             keyData = Data(base64Encoded: privateKey as! String)!
-            publicKey = try? (ASN1.ec256 + [0x04] + P256.KeyAgreement.PrivateKey(rawRepresentation: keyData).publicKey.rawRepresentation).base64EncodedString()
+            publicKey = try? (ASN1.ec384 + [0x04] + P256.KeyAgreement.PrivateKey(rawRepresentation: keyData).publicKey.rawRepresentation).base64EncodedString()
             
             resolve(publicKey)
         } catch {
@@ -33,7 +33,7 @@ class SecuritySuite: NSObject {
             guard let serverPublicKeyData = Data(base64Encoded: serverPK as String),
                   let privateKeyData = Data(base64Encoded: privateKey as String) else { return }
             
-            sharedKey = try? P256.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData).sharedSecretFromKeyAgreement(with: .init(rawRepresentation: serverPublicKeyData.dropFirst(ASN1.ec256.count + 1)))
+            sharedKey = try? P256.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData).sharedSecretFromKeyAgreement(with: .init(rawRepresentation: serverPublicKeyData.dropFirst(ASN1.ec384.count + 1)))
                 .withUnsafeBytes({ Data(buffer: $0.bindMemory(to: UInt8.self)) })
                 .base64EncodedString()
          

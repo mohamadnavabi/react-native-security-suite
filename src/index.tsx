@@ -297,6 +297,7 @@ export function fetch(
             const errorJson = jsonParse(error.error);
             reject({
               json: () => errorJson,
+              error: error?.error,
               status: error?.status,
               url: error?.url,
               curl: error?.curl,
