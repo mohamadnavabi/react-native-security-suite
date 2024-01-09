@@ -1,6 +1,5 @@
 import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import _ from 'lodash';
 import { isJsonString, jsonParse } from './helpers';
 import { EventEmitter } from 'events';
 
@@ -158,7 +157,7 @@ export const SecureStorage = {
       const data = await decrypt(encryptedData ?? '');
       if (!isJsonString(data) || !isJsonString(value)) return;
       const mergedData = await JSON.stringify(
-        _.merge(JSON.parse(data), JSON.parse(value))
+        Object.assign(JSON.parse(data), JSON.parse(value))
       );
       const encryptedValue = await encrypt(mergedData);
       return AsyncStorage.setItem(encryptedKey, encryptedValue);
@@ -240,7 +239,7 @@ export const SecureStorage = {
           const data = await decrypt(encryptedData ?? '');
           if (!isJsonString(data) || !isJsonString(item[1])) return null;
           const mergedData = await JSON.stringify(
-            _.merge(JSON.parse(data), JSON.parse(item[1]))
+            Object.assign(JSON.parse(data), JSON.parse(item[1]))
           );
           const encryptedValue = await encrypt(mergedData, false);
           return AsyncStorage.setItem(encryptedKey, encryptedValue);
