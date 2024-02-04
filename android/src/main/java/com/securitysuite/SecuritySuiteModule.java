@@ -58,8 +58,8 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   private void generateKeyPair() {
     try {
       keyPairGenerator = KeyPairGenerator.getInstance("EC");
-      ECGenParameterSpec prime256v1ParamSpec = new ECGenParameterSpec("secp256r1");
-      keyPairGenerator.initialize(prime256v1ParamSpec);
+      ECGenParameterSpec ecGenParameterSpec = new ECGenParameterSpec("secp256r1");
+      keyPairGenerator.initialize(ecGenParameterSpec);
       keyPair = keyPairGenerator.genKeyPair();
       publicKey = keyPair.getPublic();
       privateKey = keyPair.getPrivate();
