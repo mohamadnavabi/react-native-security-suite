@@ -14,7 +14,9 @@ interface SecureStorage {
 }
 
 declare module 'react-native-security-suite' {
-  function getPublicKey(): Promise<string>;
+  type EllipticCurveTypes = 'p256' | 'p384' | 'p512';
+
+  function getPublicKey(ellipticCurve: EllipticCurveTypes): Promise<string>;
 
   function getSharedKey(serverPublicKey: string): Promise<string>;
 

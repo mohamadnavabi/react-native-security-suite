@@ -56,6 +56,8 @@ export interface FetchEventResponse {
   };
 }
 
+export type EllipticCurveTypes = 'p256' | 'p384' | 'p512';
+
 const LINKING_ERROR =
   `The package 'react-native-security-suite' doesn't seem to be linked. Make sure: \n\n` +
   Platform.select({ ios: "- You have run 'pod install'\n", default: '' }) +
@@ -73,7 +75,9 @@ const SecuritySuite = NativeModules.SecuritySuite
       }
     );
 
-export const getPublicKey = (): Promise<string> => SecuritySuite.getPublicKey();
+export const getPublicKey = (
+  ellipticCurve: EllipticCurveTypes = 'p256'
+): Promise<string> => SecuritySuite.getPublicKey(ellipticCurve);
 
 export const getSharedKey = (serverPublicKey: string): Promise<string> =>
   SecuritySuite.getSharedKey(serverPublicKey);
@@ -290,8 +294,10 @@ export function fetch(
 
         try {
           if (error === null) {
-            result.json = () => jsonParse(result.response);
-            resolve(result);
+            resolve({
+              ...result,
+              json: () => jsonParse(result.response),
+            });
           } else {
             const errorJson = jsonParse(error.error);
             reject({

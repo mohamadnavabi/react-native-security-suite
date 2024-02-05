@@ -2,6 +2,8 @@ package com.securitysuite;
 
 import android.content.Context;
 import android.net.Uri;
+import android.os.Build;
+import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -28,6 +30,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +49,6 @@ public class Sslpinning {
   private ReactApplicationContext context;
   private static String content_type = "application/json; charset=utf-8";
   public static MediaType mediaType = MediaType.parse(content_type);
-  String responseBodyString = "{}";
   private static AndroidLogger curl = null;
 
   public Sslpinning(ReactApplicationContext context) {
@@ -86,19 +88,39 @@ public class Sslpinning {
       String method = getMethod(options);
 
       Request request = new Request.Builder()
-        .url(url)
-        .headers(header)
-        .method(method, body)
-        .build();
+              .url(url)
+              .headers(header)
+              .method(method, body)
+              .build();
 
       WritableMap output = Arguments.createMap();
+      String stringResponse = null;
 
       try {
         Response response = client.newCall(request).execute();
         int responseCode = response.code();
 
         byte[] bytes = response.body().bytes();
-        responseBodyString = new String(bytes, "UTF-8");
+        stringResponse = new String(bytes, "UTF-8");
+
+        String responseType = "";
+        if (options.hasKey("responseType")) {
+          responseType = options.getString("responseType");
+        }
+        switch (responseType) {
+          case "base64":
+            String base64;
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+              base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.DEFAULT);
+            } else {
+              base64 = Base64.getEncoder().encodeToString(bytes);
+            }
+            output.putString("data", base64);
+            break;
+          default:
+            output.putString("response", stringResponse);
+            break;
+        }
 
         output.putInt("status", responseCode);
         output.putString("url", request.url().toString());
@@ -110,14 +132,14 @@ public class Sslpinning {
         output.putString("duration", (rx - tx) + "ms");
 
         if (!response.isSuccessful() || responseCode >= 400) {
-          output.putString("error", responseBodyString);
+          output.putString("error", stringResponse);
           callback.invoke(null, output);
           return;
         }
-        output.putString("response", responseBodyString);
+
         callback.invoke(output, null);
       } catch (IOException e) {
-        output.putString("error", responseBodyString);
+        output.putString("error", stringResponse);
 
         callback.invoke(null, output);
         if (e instanceof java.net.SocketTimeoutException) {
