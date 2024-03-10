@@ -5,20 +5,20 @@ import Security
 import CommonCrypto
 import IOSSecuritySuite
 
-@available(iOS 13.0, *)
+@available(iOS 14.0, *)
 @objc(SecuritySuite)
 class SecuritySuite: NSObject {
     var privateKey: String!,
         publicKey: String!,
         sharedKey: String!,
         keyData: Data!
-
+    
     @objc(getPublicKey:withRejecter:)
     func getPublicKey(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) -> Void {
         do {
-            privateKey = P256.KeyAgreement.PrivateKey().rawRepresentation.base64EncodedString()
-            keyData = Data(base64Encoded: privateKey as! String)!
-            publicKey = try? (ASN1.ec256 + [0x04] + P256.KeyAgreement.PrivateKey(rawRepresentation: keyData).publicKey.rawRepresentation).base64EncodedString()
+            let key = P256.KeyAgreement.PrivateKey()
+            privateKey = key.derRepresentation.base64EncodedString()
+            publicKey = key.publicKey.derRepresentation.base64EncodedString()
             
             resolve(publicKey)
         } catch {
@@ -29,14 +29,11 @@ class SecuritySuite: NSObject {
     @objc(getSharedKey:withResolver:withRejecter:)
     func getSharedKey(serverPK: NSString, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) -> Void {
         do {
-            print("privateKey", privateKey)
             guard let serverPublicKeyData = Data(base64Encoded: serverPK as String),
                   let privateKeyData = Data(base64Encoded: privateKey as String) else { return }
-            
-            sharedKey = try? P256.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData).sharedSecretFromKeyAgreement(with: .init(rawRepresentation: serverPublicKeyData.dropFirst(ASN1.ec256.count + 1)))
-                .withUnsafeBytes({ Data(buffer: $0.bindMemory(to: UInt8.self)) })
-                .base64EncodedString()
-         
+
+            sharedKey = try? P256.KeyAgreement.PrivateKey(derRepresentation: privateKeyData).sharedSecretFromKeyAgreement(with: .init(derRepresentation: serverPublicKeyData)).withUnsafeBytes { Data($0).base64EncodedString() }
+
             resolve(sharedKey)
         } catch {
             reject("error", "GET_SHARED_KEY_ERROR", nil)
@@ -56,7 +53,9 @@ class SecuritySuite: NSObject {
                 return
             }
             let key = SymmetricKey(data: keyData)
+
             let output = try? AES.GCM.seal(data, using: key).combined?.base64EncodedString()
+
             resolve(output)
         } catch {
             reject("error", "ENCRYPT_ERROR", nil)
@@ -138,12 +137,18 @@ class SecuritySuite: NSObject {
         
         let startTime = Date()
         var request = URLRequest(url: URL(string: url as String)!)
-
-        if data["method"] != nil { request.httpMethod = data["method"] as! String } else { request.httpMethod =  "POST" }
+        
+        request.httpMethod = data["method"] as? String ?? "POST"
+        request.timeoutInterval = data["timeout"] as? TimeInterval ?? 60.0
+        request.allHTTPHeaderFields = data["headers"] as? [String : String]
         if data["body"] != nil { request.httpBody = (data["body"] as! String).data(using: .utf8)! } else { request.httpBody = "".data(using: .utf8)! }
-        if data["headers"] != nil { request.allHTTPHeaderFields = data["headers"] as! [String : String] }
-        if data["timeout"] != nil { request.timeoutInterval = data["timeout"] as! TimeInterval }
+        
+        if data["keyId"] != nil && data["requestId"] != nil {
+            request.setValue(jwsHeader(payload: request.httpBody ?? .init(), keyId: data["keyId"] as! String, requestId: data["requestId"] as! String), forHTTPHeaderField: "X-JWS-Signature")
+        }
+        
         let session = URLSession(configuration: config, delegate: sslPinning, delegateQueue: .main)
+
         let task = session.dataTask(with: request) { data, response, error in
             let response = response as? HTTPURLResponse
             
@@ -152,7 +157,7 @@ class SecuritySuite: NSObject {
                 let responseString = String.init(decoding: data ?? .init(), as: UTF8.self)
                 let errorString = error?.localizedDescription
                 let responseJSON = try? JSONSerialization.jsonObject(with: data!, options: [])
-
+                
                 var result:NSMutableDictionary = [
                     "status": response?.statusCode,
                     "url": url,
@@ -164,6 +169,7 @@ class SecuritySuite: NSObject {
                     result["responseJSON"] = responseJSON
                     callback([result, NSNull()])
                 } else {
+                    result["curl"] = request.cURL();
                     result["error"] = responseString
                     result["errorJSON"] = responseJSON
                     do {
@@ -174,14 +180,13 @@ class SecuritySuite: NSObject {
                     }
                 }
             } else {
-                print("test", error)
                 callback([NSNull(), "MUST_BE_UPDATE"])
             }
         }
         
         task.resume()
     }
-
+    
     @objc(deviceHasSecurityRisk:withRejecter:)
     func deviceHasSecurityRisk(resolve:RCTPromiseResolveBlock, reject:RCTPromiseRejectBlock) -> Void {
         do {
@@ -189,6 +194,34 @@ class SecuritySuite: NSObject {
             resolve(jailbreakStatus.jailbroken)
         } catch {
             reject("ERROR", nil, nil)
+        }
+    }
+    
+    private func convertHMACToBase64URL(hmac: Data) -> String {
+        let base64Encoded = hmac.base64EncodedString()
+        let base64URL = base64Encoded
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        
+        return base64URL
+    }
+    
+    private func jwsHeader(payload: Data, keyId: String, requestId: String) -> String {
+        do {
+            return (try? JSONEncoder().encode(JoseHeader(kid: keyId, requestId: requestId)))
+                    .flatMap { data in
+                        data.base64EncodedData().urlsafeBase64
+                    }
+                    .flatMap { (data: Data) -> String? in
+                        let value = data + Data([0x2e] /* "." */) + payload
+                        let signature = HMAC<SHA256>.authenticationCode(for: value, using: SymmetricKey(data: Data(base64Encoded: self.sharedKey)!))
+                        let base64URL = convertHMACToBase64URL(hmac: signature.withUnsafeBytes({ Data($0) }))
+
+                        return String(decoding: data, as: UTF8.self) + ".." + base64URL
+                    } ?? ""
+        } catch {
+            return "";
         }
     }
 }
@@ -199,4 +232,25 @@ struct ASN1 {
     static let ec256   = Data(base64Encoded: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA=")!
     static let ec384   = Data(base64Encoded: "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgA=")!
     static let ec521   = Data(base64Encoded: "MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQ=")!
+}
+
+struct JoseHeader: Codable {
+    internal init(alg: String = "HS256", kid: String, b64: Bool = false, crit: [String] = ["b64"], requestId: String) {
+        self.alg = alg
+        self.kid = kid
+        self.b64 = b64
+        self.crit = crit
+        self.requestId = requestId
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case alg, kid, b64, crit
+        case requestId = "request_id"
+    }
+    
+    let alg: String
+    let kid: String
+    let b64: Bool
+    let crit: [String]
+    let requestId: String
 }

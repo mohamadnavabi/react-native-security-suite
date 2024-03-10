@@ -1,9 +1,10 @@
 package com.securitysuite;
 
+import com.securitysuite.modifier.Base64Decoder;
+import com.securitysuite.modifier.BasicAuthorizationHeaderModifier;
+
 import android.content.Context;
 import android.net.Uri;
-import android.os.Build;
-import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -13,28 +14,34 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
+
 import com.moczul.ok2curl.modifier.HeaderModifier;
-import com.securitysuite.modifier.Base64Decoder;
-import com.securitysuite.modifier.BasicAuthorizationHeaderModifier;
 import com.moczul.ok2curl.Configuration;
 import com.moczul.ok2curl.CurlInterceptor;
 
 import org.json.JSONException;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.PrivateKey;
 import java.util.ArrayList;
-import java.util.Base64;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import javax.crypto.SecretKey;
 
 import okhttp3.CertificatePinner;
 import okhttp3.Headers;
@@ -45,17 +52,20 @@ import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+import okio.Buffer;
+
 public class Sslpinning {
   private ReactApplicationContext context;
   private static String content_type = "application/json; charset=utf-8";
   public static MediaType mediaType = MediaType.parse(content_type);
+  String responseBodyString = "{}";
   private static AndroidLogger curl = null;
 
   public Sslpinning(ReactApplicationContext context) {
     this.context = context;
   }
 
-  public void fetch(String url, final ReadableMap options, Callback callback) {
+  public void fetch(String url, final ReadableMap options, SecretKey sharedKey, Callback callback) {
     if (!isValidUrl(url)) {
       callback.invoke(null, "url is invalid!");
       return;
@@ -84,43 +94,45 @@ public class Sslpinning {
       OkHttpClient client = getClient(options, certificatePinner);
 
       Headers header = setHeader(options);
-      RequestBody body = setBody(context, options);
+      RequestBody requestBody = setBody(context, options);
       String method = getMethod(options);
 
+      // JWS handler
+      String jwsHeader = "";
+      if (options.hasKey("keyId") && options.hasKey("requestId")) {
+        String keyId = options.getString("keyId");
+        String requestId = options.getString("requestId");
+
+        byte[] payload = new byte[0];
+        if (requestBody != null) {
+          Buffer buffer = new Buffer();
+          try {
+            requestBody.writeTo(buffer);
+            payload = buffer.readByteArray();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        }
+
+        JWSGenerator jwsGenerator = new JWSGenerator();
+        jwsHeader = jwsGenerator.jwsHeader(payload, keyId, requestId, sharedKey);
+      }
+
       Request request = new Request.Builder()
-              .url(url)
-              .headers(header)
-              .method(method, body)
-              .build();
+          .url(url)
+          .headers(header)
+          .addHeader("X-JWS-Signature", jwsHeader)
+          .method(method, requestBody)
+          .build();
 
       WritableMap output = Arguments.createMap();
-      String stringResponse = null;
 
       try {
         Response response = client.newCall(request).execute();
         int responseCode = response.code();
 
         byte[] bytes = response.body().bytes();
-        stringResponse = new String(bytes, "UTF-8");
-
-        String responseType = "";
-        if (options.hasKey("responseType")) {
-          responseType = options.getString("responseType");
-        }
-        switch (responseType) {
-          case "base64":
-            String base64;
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-              base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.DEFAULT);
-            } else {
-              base64 = Base64.getEncoder().encodeToString(bytes);
-            }
-            output.putString("data", base64);
-            break;
-          default:
-            output.putString("response", stringResponse);
-            break;
-        }
+        responseBodyString = new String(bytes, "UTF-8");
 
         output.putInt("status", responseCode);
         output.putString("url", request.url().toString());
@@ -132,23 +144,23 @@ public class Sslpinning {
         output.putString("duration", (rx - tx) + "ms");
 
         if (!response.isSuccessful() || responseCode >= 400) {
-          output.putString("error", stringResponse);
+          output.putString("error", responseBodyString);
           callback.invoke(null, output);
           return;
         }
-
+        output.putString("response", responseBodyString);
         callback.invoke(output, null);
       } catch (IOException e) {
-        output.putString("error", stringResponse);
+        output.putString("error", responseBodyString);
 
         callback.invoke(null, output);
-        if (e instanceof java.net.SocketTimeoutException) {
+        if (e instanceof SocketTimeoutException) {
           System.err.print("Socket TimeOut");
         } else {
           e.printStackTrace();
         }
       }
-    } catch(JSONException e) {
+    } catch (JSONException e) {
       callback.invoke(null, e);
     }
   }
@@ -168,19 +180,19 @@ public class Sslpinning {
     CurlInterceptor curlInterceptor = handleCurl();
 
     if (options.hasKey("timeout")) {
-        int timeout = options.getInt("timeout");
-        return new OkHttpClient.Builder()
+      int timeout = options.getInt("timeout");
+      return new OkHttpClient.Builder()
           .connectTimeout(timeout, TimeUnit.MILLISECONDS)
           .readTimeout(timeout, TimeUnit.MILLISECONDS)
           .writeTimeout(timeout, TimeUnit.MILLISECONDS)
           .certificatePinner(certificatePinner)
           .addInterceptor(curlInterceptor)
           .build();
-      } else {
-        return new OkHttpClient.Builder()
+    } else {
+      return new OkHttpClient.Builder()
           .certificatePinner(certificatePinner)
           .build();
-      }
+    }
   }
 
   private CurlInterceptor handleCurl() {
@@ -234,7 +246,7 @@ public class Sslpinning {
     while (keySetIterator.hasNextKey()) {
       String key = keySetIterator.nextKey();
       ReadableType type = readableMap.getType(key);
-      switch(type) {
+      switch (type) {
         case String:
           map.put(key, readableMap.getString(key));
           break;
@@ -265,19 +277,19 @@ public class Sslpinning {
 
     RequestBody body = null;
     ReadableType bodyType = options.getType("body");
-      switch (bodyType) {
-        case String:
-          body = RequestBody.create(mediaType, options.getString("body"));
-          break;
-        case Map:
-          ReadableMap bodyMap = options.getMap("body");
-          if (bodyMap.hasKey("formData")) {
-            ReadableMap formData = bodyMap.getMap("formData");
-            body = getBody(formData);
-          } else if (bodyMap.hasKey("_parts")) {
-            body = getBody(bodyMap);
-          }
-          break;
+    switch (bodyType) {
+      case String:
+        body = RequestBody.create(mediaType, options.getString("body"));
+        break;
+      case Map:
+        ReadableMap bodyMap = options.getMap("body");
+        if (bodyMap.hasKey("formData")) {
+          ReadableMap formData = bodyMap.getMap("formData");
+          body = getBody(formData);
+        } else if (bodyMap.hasKey("_parts")) {
+          body = getBody(bodyMap);
+        }
+        break;
     }
     return body;
   }
@@ -308,7 +320,8 @@ public class Sslpinning {
     return multipartBodyBuilder.build();
   }
 
-  private static void addFormDataPart(Context context, MultipartBody.Builder multipartBodyBuilder, ReadableMap fileData, String key) {
+  private static void addFormDataPart(Context context, MultipartBody.Builder multipartBodyBuilder, ReadableMap fileData,
+      String key) {
     Uri _uri = Uri.parse("");
     if (fileData.hasKey("uri")) {
       _uri = Uri.parse(fileData.getString("uri"));

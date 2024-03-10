@@ -7,7 +7,6 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
-import com.scottyab.rootbeer.RootBeer;
 
 import androidx.annotation.NonNull;
 
@@ -35,6 +34,10 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import com.scottyab.rootbeer.RootBeer;
 
 @ReactModule(name = SecuritySuiteModule.NAME)
 public class SecuritySuiteModule extends ReactContextBaseJavaModule {
@@ -52,29 +55,24 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   public SecuritySuiteModule(ReactApplicationContext reactContext) {
     super(reactContext);
     context = reactContext;
+    generateKeyPair();
   }
 
-  private PublicKey generateKeyPair(String ParameterSpec) {
+  private void generateKeyPair() {
     try {
       keyPairGenerator = KeyPairGenerator.getInstance("EC");
-      // ParameterSpec Names:
-      // https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#parameterspec-names
-      ECGenParameterSpec ecGenParameterSpec = new ECGenParameterSpec("sec" + ParameterSpec + "r1");
-      keyPairGenerator.initialize(ecGenParameterSpec);
+      ECGenParameterSpec prime256v1ParamSpec = new ECGenParameterSpec("secp256r1");
+      keyPairGenerator.initialize(prime256v1ParamSpec);
       keyPair = keyPairGenerator.genKeyPair();
       publicKey = keyPair.getPublic();
       privateKey = keyPair.getPrivate();
-
-      return publicKey;
     } catch (Exception e) {
       Log.e("generateKeyPair Error: ", String.valueOf(e));
-      return null;
     }
   }
 
   @ReactMethod
-  public void getPublicKey(String ParameterSpec, Promise promise) {
-    this.generateKeyPair(ParameterSpec);
+  public void getPublicKey(Promise promise) {
     String base64DEREncoded = Base64.encodeToString(publicKey.getEncoded(), Base64.NO_WRAP);
     promise.resolve(base64DEREncoded);
   }
@@ -98,14 +96,14 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void getSharedKey(String serverPK, Promise promise) {
     try {
-      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.decode(serverPK.getBytes(), Base64.DEFAULT)); // Change
-      // ASN1
-      // to
-      // publicKey
+      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.decode(serverPK.getBytes(), Base64.NO_WRAP)); // Change
+                                                                                                               // ASN1
+                                                                                                               // to
+                                                                                                               // publicKey
       KeyFactory keyFactory = KeyFactory.getInstance("EC");
       serverPublicKey = keyFactory.generatePublic(keySpec);
       secretKey = agreeSecretKey(keyPair.getPrivate(), serverPublicKey, true);
-      sharedKey = Base64.encodeToString(secretKey.getEncoded(), Base64.DEFAULT);
+      sharedKey = Base64.encodeToString(secretKey.getEncoded(), Base64.NO_WRAP);
       promise.resolve(sharedKey);
     } catch (Exception e) {
       Log.e("getSharedKey Error: ", String.valueOf(e));
@@ -118,7 +116,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
     try {
       byte[] inputByte = input.getBytes();
       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-      byte[] decodedKey = Base64.decode(sharedKey, Base64.DEFAULT);
+      byte[] decodedKey = Base64.decode(sharedKey, Base64.NO_WRAP);
       SecretKey secretKeySpec = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
       cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
       byte[] iv = cipher.getIV();
@@ -139,19 +137,19 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void decrypt(String input, Promise promise) {
     try {
-      byte[] inputBytes = Base64.decode(input.getBytes(), Base64.DEFAULT);
+      byte[] inputBytes = Base64.decode(input.getBytes(), Base64.NO_WRAP);
       if (inputBytes.length < 12 + 16)
         throw new IllegalArgumentException();
       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
       GCMParameterSpec params = new GCMParameterSpec(128, inputBytes, 0, 12);
-      byte[] decodedKey = Base64.decode(sharedKey, Base64.DEFAULT);
+      byte[] decodedKey = Base64.decode(sharedKey, Base64.NO_WRAP);
       SecretKey secretKeySpec = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
       cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, params);
       byte[] plaintext = cipher.doFinal(inputBytes, 12, inputBytes.length - 12);
       String decrypted = new String(plaintext, Charset.forName("UTF-8"));
       promise.resolve(decrypted);
     } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException
-            | BadPaddingException | InvalidAlgorithmParameterException e) {
+        | BadPaddingException | InvalidAlgorithmParameterException e) {
       promise.reject(e);
     }
   }
@@ -195,13 +193,14 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   }
 
   private String getAndroidId() {
-    return Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+    return Settings.Secure.getString(context.getContentResolver(),
+        Settings.Secure.ANDROID_ID);
   }
 
   @ReactMethod
   public void fetch(String url, final ReadableMap options, Callback callback) {
     Sslpinning sslpinning = new Sslpinning(context);
-    sslpinning.fetch(url, options, callback);
+    sslpinning.fetch(url, options, secretKey, callback);
   }
 
   @ReactMethod
