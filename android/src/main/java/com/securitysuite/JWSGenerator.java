@@ -8,7 +8,6 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 
 public class JWSGenerator {
     public String jwsHeader(byte[] payload, String keyId, String requestId, SecretKey secretKey) {

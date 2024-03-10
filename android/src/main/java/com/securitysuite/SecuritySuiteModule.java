@@ -10,6 +10,7 @@ import com.facebook.react.module.annotations.ReactModule;
 
 import androidx.annotation.NonNull;
 
+import android.annotation.SuppressLint;
 import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
@@ -33,8 +34,6 @@ import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import com.scottyab.rootbeer.RootBeer;
@@ -96,10 +95,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void getSharedKey(String serverPK, Promise promise) {
     try {
-      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.decode(serverPK.getBytes(), Base64.NO_WRAP)); // Change
-                                                                                                               // ASN1
-                                                                                                               // to
-                                                                                                               // publicKey
+      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.decode(serverPK.getBytes(), Base64.NO_WRAP)); // Change ASN1 to publicKey
       KeyFactory keyFactory = KeyFactory.getInstance("EC");
       serverPublicKey = keyFactory.generatePublic(keySpec);
       secretKey = agreeSecretKey(keyPair.getPrivate(), serverPublicKey, true);
@@ -192,6 +188,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
     }
   }
 
+  @SuppressLint("HardwareIds")
   private String getAndroidId() {
     return Settings.Secure.getString(context.getContentResolver(),
         Settings.Secure.ANDROID_ID);

@@ -1,6 +1,6 @@
 {
   "name": "react-native-security-suite",
-  "version": "0.6.0",
+  "version": "0.6.3",
   "description": "Security solution for React Native",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -92,7 +92,6 @@
   "engines": {
     "node": ">= 16.0.0"
   },
-  "packageManager": "^yarn@1.22.15",
   "jest": {
     "preset": "react-native",
     "modulePathIgnorePatterns": [

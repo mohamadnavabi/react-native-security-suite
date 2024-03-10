@@ -193,4 +193,21 @@ extension Data {
         
         return Data(result)
     }
+
+    var urlsafeBase64: Data {
+        let r: [UInt8] = self
+            .compactMap {
+                switch $0 {
+                case UInt8(ascii: "+"):
+                    return UInt8(ascii: "-")
+                case UInt8(ascii: "/"):
+                    return UInt8(ascii: "_")
+                case UInt8(ascii: "="):
+                    return nil
+                default:
+                    return $0
+                }
+            }
+        return Data(r)
+    }
 }
