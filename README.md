@@ -81,17 +81,19 @@ console.log('Decrypted result: ', hardDecrypted);
 ```
 
 \
-5. SSL Pinning example:
+5. SSL Pinning with android network logger example:
 
 ```js
 import { fetch } from 'react-native-security-suite';
 
-const response = await fetch('URL', {
-  method: 'GET', // or any http methods
+const response = await fetch('https://example.com/api', {
+  method: 'POST', // or any http methods
   headers: {
     'Content-Type': 'application/json',
   },
-  body: undefiend,
+  body: {
+    key: value,
+  },
   certificates: ['sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX='],
   validDomains: ['example.com'],
   timeout: 6000,

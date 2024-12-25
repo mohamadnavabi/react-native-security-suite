@@ -3,6 +3,7 @@ package com.securitysuite;
 import android.content.Context;
 import android.net.Uri;
 
+import com.chuckerteam.chucker.api.ChuckerInterceptor;
 import com.facebook.react.modules.network.OkHttpClientProvider;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -176,7 +177,7 @@ public class Sslpinning {
     }
 
     if (options.hasKey("loggerIsEnabled") && options.getBoolean("loggerIsEnabled")) {
-      OkHttpClientProvider.setOkHttpClientFactory(new NetworkLogger(context));
+      builder.addInterceptor(new ChuckerInterceptor.Builder(context).build());
     }
 
     return builder.build();
