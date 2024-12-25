@@ -86,18 +86,22 @@ console.log('Decrypted result: ', hardDecrypted);
 ```js
 import { fetch } from 'react-native-security-suite';
 
-const response = await fetch('https://example.com/api', {
-  method: 'POST', // or any http methods
-  headers: {
-    'Content-Type': 'application/json',
+const response = await fetch(
+  'https://example.com/api',
+  {
+    method: 'POST', // or any http methods
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: {
+      key: value,
+    },
+    certificates: ['sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX='],
+    validDomains: ['example.com'],
+    timeout: 6000,
   },
-  body: {
-    key: value,
-  },
-  certificates: ['sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX='],
-  validDomains: ['example.com'],
-  timeout: 6000,
-});
+  __DEV__
+);
 console.log('server response: ', response.json());
 ```
 
