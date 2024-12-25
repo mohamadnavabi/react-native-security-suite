@@ -1,6 +1,6 @@
 {
   "name": "react-native-security-suite",
-  "version": "0.1.0",
+  "version": "0.6.6",
   "description": "Security solution for React Native",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -89,8 +89,14 @@
     "@types/react": "^18.2.44"
   },
   "peerDependencies": {
+    "@react-native-async-storage/async-storage": "*",
     "react": "*",
     "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "@react-native-async-storage/async-storage": {
+      "optional": false
+    }
   },
   "workspaces": [
     "example"
@@ -185,5 +191,8 @@
     "type": "legacy-module",
     "languages": "kotlin-swift",
     "version": "0.45.5"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^1.19.0"
   }
 }

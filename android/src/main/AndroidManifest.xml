@@ -1,3 +1,49 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.securitysuite">
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.CREATE_DOCUMENT" />
+      <data android:mimeType="*/*" />
+    </intent>
+  </queries>
+
+  <uses-permission
+    android:name="android.permission.WAKE_LOCK"
+    android:maxSdkVersion="25" />
+
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+    <activity
+      android:name="com.securitysuite.internal.ui.MainActivity"
+      android:label="@string/chucker_name"
+      android:launchMode="singleTask"
+      android:taskAffinity="com.securitysuite.task"
+      android:theme="@style/Chucker.Theme" />
+
+    <activity
+      android:name="com.securitysuite.internal.ui.transaction.TransactionActivity"
+      android:parentActivityName="com.securitysuite.internal.ui.MainActivity"
+      android:theme="@style/Chucker.Theme" />
+
+    <service
+      android:name="com.securitysuite.internal.support.ClearDatabaseService"
+      android:exported="false"
+      android:permission="android.permission.BIND_JOB_SERVICE" />
+
+    <receiver
+      android:name="com.securitysuite.internal.support.ClearDatabaseJobIntentServiceReceiver"
+      android:exported="false" />
+
+    <provider
+      android:name="com.securitysuite.internal.support.ChuckerFileProvider"
+      android:authorities="${applicationId}.com.securitysuite.provider"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/chucker_provider_paths" />
+    </provider>
+  </application>
 </manifest>
