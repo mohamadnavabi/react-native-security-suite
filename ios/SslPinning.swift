@@ -1,71 +1,157 @@
 import Foundation
+import SwiftUI
+import Pulse
+import PulseUI
 
 @available(iOS 13.0, *)
-class SSLPinning: NSObject, URLSessionDelegate {
-    var validDomains: [String] = []
-    var intermediateKeyHashes: [Data] = []
-    var leafKeyHashes: [Data] = []
-    
-    init(data: NSDictionary) {
-        if let certs = data["certificates"] as? [String] {
-            for cert in certs {
-                var filteredCert = cert.replacingOccurrences(of: "sha256/", with: "", options: .caseInsensitive, range: nil)
-                intermediateKeyHashes.append(Data(base64Encoded: filteredCert)!)
-            }
-        }
+class SSLPinning: NSObject, URLSessionDataDelegate  {
+  var url: NSString!
+  var data: NSDictionary!
+  var callback: RCTResponseSenderBlock!
+  var validDomains: [String] = []
+  var intermediateKeyHashes: [Data] = []
+  var leafKeyHashes: [Data] = []
+  var networkLogger: NetworkLogger = .init()
+  var responseData: Data = Data()
+  
+  init(url: NSString, data: NSDictionary, callback: @escaping RCTResponseSenderBlock) {
+      self.url = url
+      self.data = data
+      self.callback = callback
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (
+      URLSession.AuthChallengeDisposition,
+      URLCredential?
+    ) -> Void
+  ) {
+    if let certs = data["certificates"] as? [String] {
+      for cert in certs {
+        let filteredCert = cert.replacingOccurrences(
+          of: "sha256/",
+          with: "",
+          options: .caseInsensitive,
+          range: nil
+        )
+        intermediateKeyHashes.append(Data(base64Encoded: filteredCert)!)
+      }
+    } else {
+      return completionHandler(.performDefaultHandling, nil)
+    }
         
-        if let domains = data["validDomains"] as? [String] {
-            for domain in domains {
-                validDomains.append(domain)
-            }
-        }
+    if let domains = data["validDomains"] as? [String] {
+      for domain in domains {
+        validDomains.append(domain)
+      }
+    } else {
+      return completionHandler(.performDefaultHandling, nil)
+    }
+      
+    guard let trust = challenge.protectionSpace.serverTrust else {
+      return completionHandler(.cancelAuthenticationChallenge, nil)
+    }
+
+    let host = challenge.protectionSpace.host
+    let port = challenge.protectionSpace.port
+    guard port == 443, (3...4).contains(trust.certificates.count),
+          let leafCertificate = trust.certificates.first,
+          let commonName = leafCertificate.commonName,
+          validDomains
+      .contains(where: { commonName == $0 || commonName.hasSuffix("." + $0) }) else {
+      completionHandler(.cancelAuthenticationChallenge, nil)
+      return
+    }
+    let intermediateCertificatesValid = trust.certificates.dropFirst().prefix(2).allSatisfy {
+      ($0.pin.map(intermediateKeyHashes.contains) ?? false)
+    }
+    let leafCertificateValid = leafKeyHashes.contains(
+      leafCertificate.pin ?? .init()
+    )
+        
+    let pattern = commonName
+      .replacingOccurrences(of: ".", with: "\\.")
+      .replacingOccurrences(of: "*", with: ".+", options: [.anchored])
+    guard intermediateCertificatesValid && (
+      leafKeyHashes.isEmpty || leafCertificateValid
+    ),
+          let commonNameRegex = try? NSRegularExpression(pattern: pattern) else {
+      completionHandler(.cancelAuthenticationChallenge, nil)
+      return
+    }
+        
+    guard commonNameRegex.textMatches(in: host) == [host] else {
+      completionHandler(.cancelAuthenticationChallenge, nil)
+      return
+    }
+        
+    trust.policies = [.ssl(server: true, hostname: host)]
+    do {
+      if try !trust.evaluate() {
+        completionHandler(.cancelAuthenticationChallenge, nil)
+      }
+    } catch {
+      completionHandler(.cancelAuthenticationChallenge, nil)
+      return
+    }
+        
+    let credential = URLCredential(trust: trust)
+    completionHandler(.useCredential, credential)
+  }
+    
+    func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+      networkLogger.logTaskCreated(task)
+    }
+  
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+      networkLogger.logDataTask(dataTask, didReceive: data)
+      responseData.append(data)
     }
     
-    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard let trust = challenge.protectionSpace.serverTrust else {
-            return completionHandler(.cancelAuthenticationChallenge, nil)
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+      networkLogger.logTask(task, didCompleteWithError: error)
+      
+      if let error = error {
+          callback([nil, error.localizedDescription])
+      } else {
+        if let httpResponse = task.response as? HTTPURLResponse {
+            let responseString = String(data: responseData, encoding: .utf8) ?? ""
+            let responseDict: [String: Any] = ["status": httpResponse.statusCode, "headers": httpResponse.allHeaderFields, "error": responseString, "url": url]
+            callback([NSNull(), responseDict])
+        } else {
+            callback([NSNull(), "Unknown error occurred"])
         }
-        
-        let host = challenge.protectionSpace.host
-        let port = challenge.protectionSpace.port
-        guard port == 443, (3...4).contains(trust.certificates.count),
-              let leafCertificate = trust.certificates.first,
-              let commonName = leafCertificate.commonName,
-              validDomains.contains(where: { commonName == $0 || commonName.hasSuffix("." + $0) }) else {
-                  completionHandler(.cancelAuthenticationChallenge, nil)
-                  return
-              }
-        let intermediateCertificatesValid = trust.certificates.dropFirst().prefix(2).allSatisfy {
-            ($0.pin.map(intermediateKeyHashes.contains) ?? false)
+      }
+    }
+  
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        print("hereee", String(data: responseData, encoding: .utf8))
+//        if let httpResponse = task.response as? HTTPURLResponse {
+//          let responseString = String(data: responseData, encoding: .utf8) ?? ""
+//          let responseDict: [String: Any] = ["status": httpResponse.statusCode, "headers": httpResponse.allHeaderFields, "response": responseString, "url": url]
+//          callback([responseData, NSNull()])
+//        }
+        networkLogger.logTask(task, didFinishCollecting: metrics)
+        openPulseUI()
+    }
+  
+  
+    @objc(openPulseUI)
+    func openPulseUI() {
+      if #available(iOS 15.0, *) {
+        let hostingController = UIHostingController(rootView: ConsoleView())
+          if let rootViewController = UIApplication.shared.keyWindow?.rootViewController {
+            let navigationController = UINavigationController()
+            navigationController.setViewControllers([hostingController], animated: false)
+            rootViewController.present(navigationController, animated: true, completion: nil)
+          }
+      } else {
+        if let rootViewController = UIApplication.shared.keyWindow?.rootViewController {
+          rootViewController.present(UIViewController(), animated: true, completion: nil)
         }
-        let leafCertificateValid = leafKeyHashes.contains(leafCertificate.pin ?? .init())
-        
-        let pattern = commonName
-            .replacingOccurrences(of: ".", with: "\\.")
-            .replacingOccurrences(of: "*", with: ".+", options: [.anchored])
-        guard intermediateCertificatesValid && (leafKeyHashes.isEmpty || leafCertificateValid),
-              let commonNameRegex = try? NSRegularExpression(pattern: pattern) else {
-            completionHandler(.cancelAuthenticationChallenge, nil)
-            return
-        }
-        
-        guard commonNameRegex.textMatches(in: host) == [host] else {
-            completionHandler(.cancelAuthenticationChallenge, nil)
-            return
-        }
-        
-        trust.policies = [.ssl(server: true, hostname: host)]
-        do {
-            if try !trust.evaluate() {
-                completionHandler(.cancelAuthenticationChallenge, nil)
-            }
-        } catch {
-            completionHandler(.cancelAuthenticationChallenge, nil)
-            return
-        }
-        
-        let credential = URLCredential(trust: trust)
-        completionHandler(.useCredential, credential)
+      }
     }
 }
 
@@ -195,4 +281,25 @@ extension NSRegularExpression {
                 return String(string[range])
             }
     }
+}
+
+struct JoseHeader: Codable {
+    internal init(alg: String = "HS256", kid: String, b64: Bool = false, crit: [String] = ["b64"], requestId: String) {
+        self.alg = alg
+        self.kid = kid
+        self.b64 = b64
+        self.crit = crit
+        self.requestId = requestId
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case alg, kid, b64, crit
+        case requestId = "request_id"
+    }
+    
+    let alg: String
+    let kid: String
+    let b64: Bool
+    let crit: [String]
+    let requestId: String
 }
