@@ -11,8 +11,9 @@ class SecuritySuite: NSObject {
     var privateKey: String!,
         publicKey: String!,
         sharedKey: String!,
-        keyData: Data!
-    
+        keyData: Data!,
+        session: URLSession!
+  
     @objc(getPublicKey:withRejecter:)
     func getPublicKey(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) -> Void {
         do {
@@ -127,62 +128,43 @@ class SecuritySuite: NSObject {
     
     @objc(fetch:withData:withCallback:)
     func fetch(url: NSString, data: NSDictionary, callback: @escaping RCTResponseSenderBlock) -> Void {
-        let config = URLSessionConfiguration.default
-        config.httpShouldSetCookies = false
-        config.httpCookieAcceptPolicy = .never
-        config.networkServiceType = .responsiveData
-        config.shouldUseExtendedBackgroundIdleMode = true
+        let configuration = URLSessionConfiguration.default
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.networkServiceType = .responsiveData
+        configuration.shouldUseExtendedBackgroundIdleMode = true
         
-        let sslPinning = SSLPinning(data: data)
-        
-        let startTime = Date()
         var request = URLRequest(url: URL(string: url as String)!)
-        
         request.httpMethod = data["method"] as? String ?? "POST"
         request.timeoutInterval = data["timeout"] as? TimeInterval ?? 60.0
         request.allHTTPHeaderFields = data["headers"] as? [String : String]
-        if data["body"] != nil { request.httpBody = (data["body"] as! String).data(using: .utf8)! } else { request.httpBody = "".data(using: .utf8)! }
-        
-        if data["keyId"] != nil && data["requestId"] != nil {
-            request.setValue(jwsHeader(payload: request.httpBody ?? .init(), keyId: data["keyId"] as! String, requestId: data["requestId"] as! String), forHTTPHeaderField: "X-JWS-Signature")
-        }
-        
-        let session = URLSession(configuration: config, delegate: sslPinning, delegateQueue: .main)
-
-        let task = session.dataTask(with: request) { data, response, error in
-            let response = response as? HTTPURLResponse
-            
-            if error == nil {
-                let responseCode = response?.statusCode
-                let responseString = String.init(decoding: data ?? .init(), as: UTF8.self)
-                let errorString = error?.localizedDescription
-                let responseJSON = try? JSONSerialization.jsonObject(with: data!, options: [])
-                
-                var result:NSMutableDictionary = [
-                    "status": response?.statusCode,
-                    "url": url,
-                ]
-                if errorString == nil && responseCode! < 400 {
-                    result["response"] = responseString
-                    result["duration"] = "\(Int(Date().timeIntervalSince(startTime) * 1000))ms"
-                    result["responseJSON"] = responseJSON
-                    callback([result, NSNull()])
-                } else {
-                    result["error"] = responseString
-                    result["errorJSON"] = responseJSON
-                    do {
-                        let jsonData = try JSONSerialization.data(withJSONObject: result)
-                        callback([NSNull(), result])
-                    } catch {
-                        callback([NSNull(), "JSON_PARSE_ERROR"])
-                    }
-                }
-            } else {
-                callback([NSNull(), "MUST_BE_UPDATE"])
+        // Prepare body
+        if let body = data["body"] {
+            if let bodyString = body as? String {
+                request.httpBody = bodyString.data(using: .utf8)
+            } else if let bodyDict = body as? [String: Any] {
+                request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict, options: [])
             }
         }
-        
-        task.resume()
+      if data["keyId"] != nil && data["requestId"] != nil {
+        request
+          .setValue(
+            jwsHeader(
+              payload: request.httpBody ?? .init(),
+              keyId: data["keyId"] as! String,
+              requestId: data["requestId"] as! String
+            ),
+            forHTTPHeaderField: "X-JWS-Signature"
+          )
+      }
+
+      let sslPinning = SSLPinning(url: url, data: data, callback: callback)
+      let session = URLSession(
+        configuration: configuration,
+        delegate: sslPinning,
+        delegateQueue: .main
+      )
+      session.dataTask(with: request).resume()
     }
     
     @objc(deviceHasSecurityRisk:withRejecter:)
@@ -222,33 +204,4 @@ class SecuritySuite: NSObject {
             return "";
         }
     }
-}
-
-struct ASN1 {
-    static let rsa2048 = Data(base64Encoded: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A")!
-    static let rsa4096 = Data(base64Encoded: "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8A")!
-    static let ec256   = Data(base64Encoded: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgA=")!
-    static let ec384   = Data(base64Encoded: "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgA=")!
-    static let ec521   = Data(base64Encoded: "MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQ=")!
-}
-
-struct JoseHeader: Codable {
-    internal init(alg: String = "HS256", kid: String, b64: Bool = false, crit: [String] = ["b64"], requestId: String) {
-        self.alg = alg
-        self.kid = kid
-        self.b64 = b64
-        self.crit = crit
-        self.requestId = requestId
-    }
-    
-    private enum CodingKeys: String, CodingKey {
-        case alg, kid, b64, crit
-        case requestId = "request_id"
-    }
-    
-    let alg: String
-    let kid: String
-    let b64: Bool
-    let crit: [String]
-    let requestId: String
 }

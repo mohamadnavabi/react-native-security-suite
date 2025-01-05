@@ -8,6 +8,9 @@ PODS:
     - hermes-engine/Pre-built (= 0.76.5)
   - hermes-engine/Pre-built (0.76.5)
   - IOSSecuritySuite (2.1.0)
+  - PulseCore (4.2.7)
+  - PulseUI (4.2.7):
+    - PulseCore (~> 4.2)
   - RCT-Folly (2024.01.01.00):
     - boost
     - DoubleConversion
@@ -1243,11 +1246,13 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-security-suite (0.6.6):
+  - react-native-security-suite (0.7.2):
     - DoubleConversion
     - glog
     - hermes-engine
     - IOSSecuritySuite
+    - PulseCore
+    - PulseUI
     - RCT-Folly (= 2024.01.01.00)
     - RCTRequired
     - RCTTypeSafety
@@ -1628,6 +1633,8 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - IOSSecuritySuite
+    - PulseCore
+    - PulseUI
     - SocketRocket
 
 EXTERNAL SOURCES:
@@ -1771,6 +1778,8 @@ SPEC CHECKSUMS:
   glog: 08b301085f15bcbb6ff8632a8ebaf239aae04e6a
   hermes-engine: 06a9c6900587420b90accc394199527c64259db4
   IOSSecuritySuite: 45e8531b05ffa72b5661cbdb5b5b5648a8de1a84
+  PulseCore: 812f6814b174a27d8b99eced5df7da12b0d8a700
+  PulseUI: ae92dca925635b516600c0550c2a3079c0b28158
   RCT-Folly: bf5c0376ffe4dd2cf438dcf86db385df9fdce648
   RCTDeprecation: fb7d408617e25d7f537940000d766d60149c5fea
   RCTRequired: 9aaf0ffcc1f41f0c671af863970ef25c422a9920
@@ -1800,7 +1809,7 @@ SPEC CHECKSUMS:
   React-logger: 697873f06b8ba436e3cddf28018ab4741e8071b6
   React-Mapbuffer: c174e11bdea12dce07df8669d6c0dc97eb0c7706
   React-microtasksnativemodule: 8a80099ad7391f4e13a48b12796d96680f120dc6
-  react-native-security-suite: 0ed17d448a2cc7002388bf2fdf22253f2644ae06
+  react-native-security-suite: e4ea51c850f75674d9987127a84e427269c01ec4
   React-nativeconfig: f7ab6c152e780b99a8c17448f2d99cf5f69a2311
   React-NativeModulesApple: 70600f7edfc2c2a01e39ab13a20fd59f4c60df0b
   React-perflogger: ceb97dd4e5ca6ff20eebb5a6f9e00312dcdea872
@@ -1834,4 +1843,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 4cde90e18eb1851c2311be959f1ac9ea1c3f6995
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.16.2

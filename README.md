@@ -3,13 +3,7 @@
 Security solutions for React Native both platform Android and iOS
 You can use any of the following:
 
-<ol>
-  <li>Android Root device or iOS Jailbreak device detection</li>
-  <li>Text Encryption/Decryption</li>
-  <li>Secure storage</li>
-  <li>Diffie–Hellman key exchange</li>
-  <li>SSL Pinning & public key pinning</li>
-</ol>
+<ol><li>Android Root device or iOS Jailbreak device detection</li><li>Text Encryption/Decryption</li><li>Secure storage</li><li>Diffie–Hellman key exchange</li><li>SSL Pinning &amp; public key pinning</li><li>Network Logger (Android Chucker - iOS Pulse)</li></ol>
 
 ## Installation
 
@@ -32,8 +26,7 @@ const isRiskyDevice = await deviceHasSecurityRisk();
 console.log('Root/Jailbreak detection result: ', isRiskyDevice);
 ```
 
-\
-2. Text Encryption/Decryption example:
+2\. Text Encryption/Decryption example:
 
 ```js
 const softEncrypted = await encrypt('STR_FOR_ENCRYPT');
@@ -42,8 +35,7 @@ const softDecrypted = await decrypt('STR_FOR_DECRYPT');
 console.log('Decrypted result: ', softDecrypted);
 ```
 
-\
-3. Secure storage example:
+3\. Secure storage example:
 
 ```js
 import { SecureStorage } from 'react-native-security-suite';
@@ -52,8 +44,7 @@ SecureStorage.setItem('key', 'value');
 console.log(await SecureStorage.getItem('key'));
 ```
 
-\
-4. Diffie–Hellman key exchange:
+4\. Diffie–Hellman key exchange:
 
 ```js
 import {
@@ -80,8 +71,7 @@ const hardDecrypted = await decryptBySharedKey('STR_FOR_DECRYPT');
 console.log('Decrypted result: ', hardDecrypted);
 ```
 
-\
-5. SSL Pinning with android network logger example:
+5\. SSL Pinning with network logger:
 
 ```js
 import { fetch } from 'react-native-security-suite';
