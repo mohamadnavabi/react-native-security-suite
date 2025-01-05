@@ -1,10 +1,7 @@
-import Foundation
-import SwiftUI
 import Pulse
-import PulseUI
 
 @available(iOS 13.0, *)
-class SSLPinning: NSObject, URLSessionDataDelegate  {
+class SSLPinning: NSObject, URLSessionDataDelegate {
   var url: NSString!
   var data: NSDictionary!
   var callback: RCTResponseSenderBlock!
@@ -13,7 +10,8 @@ class SSLPinning: NSObject, URLSessionDataDelegate  {
   var leafKeyHashes: [Data] = []
   var networkLogger: NetworkLogger = .init()
   var responseData: Data = Data()
-  
+  let pulseNotification = PulseUINotification()
+
   init(url: NSString, data: NSDictionary, callback: @escaping RCTResponseSenderBlock) {
       self.url = url
       self.data = data
@@ -117,41 +115,41 @@ class SSLPinning: NSObject, URLSessionDataDelegate  {
           callback([nil, error.localizedDescription])
       } else {
         if let httpResponse = task.response as? HTTPURLResponse {
-            let responseString = String(data: responseData, encoding: .utf8) ?? ""
-            let responseDict: [String: Any] = ["status": httpResponse.statusCode, "headers": httpResponse.allHeaderFields, "error": responseString, "url": url]
-            callback([NSNull(), responseDict])
+          let url = httpResponse.url?.absoluteString ?? url! as String
+          let status = httpResponse.statusCode
+          let headers = httpResponse.allHeaderFields
+          
+          if(httpResponse.statusCode > 299) {
+            callback([NSNull(),  [
+              "url": url,
+              "status": status,
+              "headers": status,
+              "error": String(data: responseData, encoding: .utf8) ?? "",
+            ]])
+          } else {
+            callback([[
+              "url": url,
+              "status": status,
+              "headers": headers,
+              "response": String.init(decoding: responseData, as: UTF8.self),
+              "responseJson": try? JSONSerialization.jsonObject(with: responseData, options: []),
+            ], NSNull()])
+          }
         } else {
             callback([NSNull(), "Unknown error occurred"])
         }
       }
     }
-  
+
     func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
-        print("hereee", String(data: responseData, encoding: .utf8))
-//        if let httpResponse = task.response as? HTTPURLResponse {
-//          let responseString = String(data: responseData, encoding: .utf8) ?? ""
-//          let responseDict: [String: Any] = ["status": httpResponse.statusCode, "headers": httpResponse.allHeaderFields, "response": responseString, "url": url]
-//          callback([responseData, NSNull()])
-//        }
         networkLogger.logTask(task, didFinishCollecting: metrics)
-        openPulseUI()
-    }
-  
-  
-    @objc(openPulseUI)
-    func openPulseUI() {
-      if #available(iOS 15.0, *) {
-        let hostingController = UIHostingController(rootView: ConsoleView())
-          if let rootViewController = UIApplication.shared.keyWindow?.rootViewController {
-            let navigationController = UINavigationController()
-            navigationController.setViewControllers([hostingController], animated: false)
-            rootViewController.present(navigationController, animated: true, completion: nil)
+        if (data["loggerIsEnabled"] as? Bool) == true {
+          if let httpResponse = task.response as? HTTPURLResponse {
+            if let url = URL(string: httpResponse.url?.absoluteString ?? url! as String) {
+              pulseNotification.showNotification(body: "\(httpResponse.statusCode) \(url.relativePath)")
+            }
           }
-      } else {
-        if let rootViewController = UIApplication.shared.keyWindow?.rootViewController {
-          rootViewController.present(UIViewController(), animated: true, completion: nil)
         }
-      }
     }
 }
 

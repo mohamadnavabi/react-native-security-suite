@@ -158,7 +158,7 @@ class SecuritySuite: NSObject {
           )
       }
 
-      let sslPinning = SSLPinning(url:url, data: data, callback: callback)
+      let sslPinning = SSLPinning(url: url, data: data, callback: callback)
       let session = URLSession(
         configuration: configuration,
         delegate: sslPinning,
