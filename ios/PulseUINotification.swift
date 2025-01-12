@@ -11,7 +11,7 @@ class PulseUINotification: NSObject, UNUserNotificationCenterDelegate {
   }
 
   func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-    completionHandler([.sound, .badge])
+      completionHandler([.list])
   }
   
   func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -27,7 +27,7 @@ class PulseUINotification: NSObject, UNUserNotificationCenterDelegate {
   }
   
   func requestPermission() {
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { granted, error in
       if granted {
 //        print("PulseUI Notification Permission Granted")
       } else {
@@ -65,7 +65,7 @@ class PulseUINotification: NSObject, UNUserNotificationCenterDelegate {
   @objc(openPulseUI)
   func openPulseUI() {
     DispatchQueue.main.async {
-      if #available(iOS 15.0, *) {
+      if #available(iOS 14.0, *) {
         let hostingController = UIHostingController(rootView: ConsoleView())
         if let rootViewController = UIApplication.shared.keyWindow?.rootViewController {
           let navigationController = UINavigationController()
