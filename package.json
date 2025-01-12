@@ -1,6 +1,6 @@
 {
   "name": "react-native-security-suite",
-  "version": "0.8.0",
+  "version": "0.8.7",
   "description": "Security solution for React Native",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
