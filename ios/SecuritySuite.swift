@@ -14,8 +14,10 @@ class SecuritySuite: NSObject {
         keyData: Data!,
         session: URLSession!
 
-    private let screenGuard = ScreenGuard()
-  
+    private lazy var screenGuard: ScreenGuard = {
+        return ScreenGuard()
+    }()
+
     @objc(getPublicKey:withRejecter:)
     func getPublicKey(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) -> Void {
         do {
@@ -183,9 +185,9 @@ class SecuritySuite: NSObject {
     func setScreenshotGuard(enable: Bool) {
         DispatchQueue.main.async {
             if enable {
-              self.screenGuard.enableScreenshotGuard()
+                self.screenGuard.enableScreenshotGuard()
             } else {
-              self.screenGuard.disableScreenshotGuard()
+                self.screenGuard.disableScreenshotGuard()
             }
         }
     }
