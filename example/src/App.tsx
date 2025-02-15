@@ -17,6 +17,7 @@ import {
   deviceHasSecurityRisk,
   fetch,
   SecureStorage,
+  setScreenshotGuard,
 } from 'react-native-security-suite';
 
 export default function App() {
@@ -48,6 +49,9 @@ export default function App() {
         // Root/Jailbreak detection
         const isRiskyDevice = await deviceHasSecurityRisk();
         console.log('Root/Jailbreak detection result: ', isRiskyDevice);
+
+        // Disable capture/screenshot
+        setScreenshotGuard(true);
 
         // SecureStorage
         SecureStorage.setItem('key', 'value');

@@ -26,7 +26,15 @@ const isRiskyDevice = await deviceHasSecurityRisk();
 console.log('Root/Jailbreak detection result: ', isRiskyDevice);
 ```
 
-2\. Text Encryption/Decryption example:
+2\. Disable capture/screenshot:
+
+```js
+import { setScreenshotGuard } from 'react-native-security-suite';
+
+setScreenshotGuard(!__DEV__);
+```
+
+3\. Text Encryption/Decryption example:
 
 ```js
 const softEncrypted = await encrypt('STR_FOR_ENCRYPT');
@@ -35,7 +43,7 @@ const softDecrypted = await decrypt('STR_FOR_DECRYPT');
 console.log('Decrypted result: ', softDecrypted);
 ```
 
-3\. Secure storage example:
+4\. Secure storage example:
 
 ```js
 import { SecureStorage } from 'react-native-security-suite';
@@ -44,7 +52,7 @@ SecureStorage.setItem('key', 'value');
 console.log(await SecureStorage.getItem('key'));
 ```
 
-4\. Diffie–Hellman key exchange:
+5\. Diffie–Hellman key exchange:
 
 ```js
 import {
@@ -71,7 +79,7 @@ const hardDecrypted = await decryptBySharedKey('STR_FOR_DECRYPT');
 console.log('Decrypted result: ', hardDecrypted);
 ```
 
-5\. SSL Pinning with network logger:
+6\. SSL Pinning with network logger:
 
 ```js
 import { fetch } from 'react-native-security-suite';

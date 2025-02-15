@@ -91,7 +91,7 @@ declare module 'react-native-security-suite' {
     };
   }
 
-  async function fetch(
+  function fetch(
     url: string,
     options: Options,
     loggerIsEnabled?: boolean
@@ -100,5 +100,7 @@ declare module 'react-native-security-suite' {
    * SSL Pinnning end
    */
 
-  async function deviceHasSecurityRisk(): Promise<boolean>;
+  function deviceHasSecurityRisk(): Promise<boolean>;
+
+  function setScreenshotGuard(enable: boolean): Promise<void>;
 }

@@ -20,6 +20,8 @@ RCT_EXTERN_METHOD(fetch:(NSString)url withData:(NSDictionary)data withCallback:(
 
 RCT_EXTERN_METHOD(deviceHasSecurityRisk:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(setScreenshotGuard:(BOOL)enable)
+
 + (BOOL)requiresMainQueueSetup
 {
   return NO;

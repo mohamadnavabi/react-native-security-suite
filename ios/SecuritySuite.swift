@@ -13,6 +13,8 @@ class SecuritySuite: NSObject {
         sharedKey: String!,
         keyData: Data!,
         session: URLSession!
+
+    private let screenGuard = ScreenGuard()
   
     @objc(getPublicKey:withRejecter:)
     func getPublicKey(resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) -> Void {
@@ -176,7 +178,18 @@ class SecuritySuite: NSObject {
             reject("ERROR", nil, nil)
         }
     }
-    
+
+    @objc(setScreenshotGuard:)
+    func setScreenshotGuard(enable: Bool) {
+        DispatchQueue.main.async {
+            if enable {
+              self.screenGuard.enableScreenshotGuard()
+            } else {
+              self.screenGuard.disableScreenshotGuard()
+            }
+        }
+    }
+
     private func convertHMACToBase64URL(hmac: Data) -> String {
         let base64Encoded = hmac.base64EncodedString()
         let base64URL = base64Encoded

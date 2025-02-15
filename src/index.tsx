@@ -308,4 +308,8 @@ export function deviceHasSecurityRisk(): Promise<boolean> {
   return SecuritySuite.deviceHasSecurityRisk();
 }
 
+export function setScreenshotGuard(enable: boolean) {
+  return SecuritySuite.setScreenshotGuard(enable);
+}
+
 export default SecuritySuite;
