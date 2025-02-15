@@ -78,7 +78,7 @@ public class Sslpinning {
       String method = getMethod(options);
       RequestBody requestBody = setBody(options);
 
-      if (!method.equals("GET") && requestBody == null) {
+      if ((method.equals("POST") || method.equals("PUT") || method.equals("PATCH")) && requestBody == null) {
         this.callback.invoke(null, "For " + method + " method body option is Required!");
         return;
       }
