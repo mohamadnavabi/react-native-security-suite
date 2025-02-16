@@ -1,6 +1,8 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, requireNativeComponent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isJsonString, jsonParse } from './helpers';
+
+export const SecureView = requireNativeComponent('SecureView');
 
 /*
  * SSL Pinnning start
@@ -306,10 +308,6 @@ export function fetch(
 
 export function deviceHasSecurityRisk(): Promise<boolean> {
   return SecuritySuite.deviceHasSecurityRisk();
-}
-
-export function setScreenshotGuard(enable: boolean) {
-  return SecuritySuite.setScreenshotGuard(enable);
 }
 
 export default SecuritySuite;

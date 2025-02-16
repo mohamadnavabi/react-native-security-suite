@@ -102,5 +102,5 @@ declare module 'react-native-security-suite' {
 
   function deviceHasSecurityRisk(): Promise<boolean>;
 
-  function setScreenshotGuard(enable: boolean): Promise<void>;
+  const SecureView: React.ComponentType<View>;
 }

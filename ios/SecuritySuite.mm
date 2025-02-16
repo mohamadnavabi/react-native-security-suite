@@ -1,4 +1,5 @@
 #import <React/RCTBridgeModule.h>
+#import <SecureViewManager.h>
 
 @interface RCT_EXTERN_MODULE(SecuritySuite, NSObject)
 
@@ -19,8 +20,6 @@ RCT_EXTERN_METHOD(storageDecrypt:(NSString)input withSecretKey:(NSString*)secret
 RCT_EXTERN_METHOD(fetch:(NSString)url withData:(NSDictionary)data withCallback:(RCTResponseSenderBlock)callback)
 
 RCT_EXTERN_METHOD(deviceHasSecurityRisk:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
-
-RCT_EXTERN_METHOD(setScreenshotGuard:(BOOL)enable)
 
 + (BOOL)requiresMainQueueSetup
 {

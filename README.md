@@ -29,9 +29,13 @@ console.log('Root/Jailbreak detection result: ', isRiskyDevice);
 2\. Disable capture/screenshot:
 
 ```js
-import { setScreenshotGuard } from 'react-native-security-suite';
+import { SecureView } from 'react-native-security-suite';
 
-setScreenshotGuard(!__DEV__);
+<View style={styles.container}>
+  <SecureView>
+    <Text>Protect this from screenshot or screen record</Text>
+  </SecureView>
+</View>;
 ```
 
 3\. Text Encryption/Decryption example:
