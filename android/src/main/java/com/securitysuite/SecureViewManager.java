@@ -1,9 +1,11 @@
 package com.securitysuite;
 
-import android.util.Log;
+import android.app.Activity;
 import android.view.Choreographer;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
@@ -39,6 +41,17 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
 
   @Override
   public SecureView createViewInstance(ThemedReactContext reactContext) {
+    // TODO: move this to the fragment lifycycle
+    final Activity activity = reactContext.getCurrentActivity();
+    if (activity != null) {
+      activity.runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+          Window window = activity.getWindow();
+          window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        }
+      });
+    }
     return new SecureView(reactContext);
   }
 

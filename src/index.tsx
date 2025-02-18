@@ -1,8 +1,8 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, requireNativeComponent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isJsonString, jsonParse } from './helpers';
 
-export * from './SecureView';
+export const SecureView = requireNativeComponent('SecureView');
 
 /*
  * SSL Pinnning start
