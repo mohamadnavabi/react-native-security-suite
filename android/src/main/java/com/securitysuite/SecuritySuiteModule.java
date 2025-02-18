@@ -11,12 +11,9 @@ import com.facebook.react.module.annotations.ReactModule;
 import androidx.annotation.NonNull;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
-import android.view.Window;
-import android.view.WindowManager;
 
 import java.nio.charset.Charset;
 import java.security.InvalidAlgorithmParameterException;
@@ -207,24 +204,6 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   public void deviceHasSecurityRisk(Promise promise) {
     RootBeer rootBeer = new RootBeer(context);
     promise.resolve(rootBeer.isRooted());
-  }
-
-  @ReactMethod
-  public void setScreenshotGuard(boolean enable) {
-    final Activity activity = getCurrentActivity();
-    if (activity != null) {
-      activity.runOnUiThread(new Runnable() {
-        @Override
-        public void run() {
-          Window window = activity.getWindow();
-          if (enable) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-          } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
-          }
-        }
-      });
-    }
   }
 
   @Override

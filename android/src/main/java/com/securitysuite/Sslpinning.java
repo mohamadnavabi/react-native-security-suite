@@ -4,7 +4,6 @@ import android.content.Context;
 import android.net.Uri;
 
 import com.chuckerteam.chucker.api.ChuckerInterceptor;
-import com.facebook.react.modules.network.OkHttpClientProvider;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
