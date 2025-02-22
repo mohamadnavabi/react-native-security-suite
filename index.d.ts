@@ -102,5 +102,7 @@ declare module 'react-native-security-suite' {
 
   function deviceHasSecurityRisk(): Promise<boolean>;
 
-  const SecureView: React.ComponentType<View>;
+  interface SecureViewProps {}
+
+  declare const SecureView: React.ComponentType<SecureViewProps>;
 }

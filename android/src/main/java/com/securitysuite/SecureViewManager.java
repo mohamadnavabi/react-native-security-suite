@@ -1,11 +1,9 @@
 package com.securitysuite;
 
-import android.app.Activity;
+import android.util.Log;
 import android.view.Choreographer;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
@@ -25,8 +23,8 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
 
   public static final String REACT_CLASS = "SecureView";
   public final int COMMAND_CREATE = 1;
-  private int propWidth;
-  private int propHeight;
+  private int propWidth = ViewGroup.LayoutParams.MATCH_PARENT;
+  private int propHeight = ViewGroup.LayoutParams.MATCH_PARENT;
 
   ReactApplicationContext reactContext;
 
@@ -41,17 +39,6 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
 
   @Override
   public SecureView createViewInstance(ThemedReactContext reactContext) {
-    // TODO: move this to the fragment lifycycle
-    final Activity activity = reactContext.getCurrentActivity();
-    if (activity != null) {
-      activity.runOnUiThread(new Runnable() {
-        @Override
-        public void run() {
-          Window window = activity.getWindow();
-          window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-        }
-      });
-    }
     return new SecureView(reactContext);
   }
 
@@ -61,21 +48,34 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
     return MapBuilder.of("create", COMMAND_CREATE);
   }
 
-  public void receiveCommand(
-      @NonNull FrameLayout root,
-      String commandId,
-      @Nullable ReadableArray args) {
-    super.receiveCommand((SecureView) root, commandId, args);
-    int reactNativeViewId = args.getInt(0);
+  @Override
+  public void receiveCommand(@NonNull SecureView root, String commandId, @Nullable ReadableArray args) {
+    super.receiveCommand(root, commandId, args);
     int commandIdInt = Integer.parseInt(commandId);
-
-    switch (commandIdInt) {
-      case COMMAND_CREATE:
-        createFragment(root, reactNativeViewId);
-        break;
-      default: {
-      }
+    if (commandIdInt == COMMAND_CREATE) {
+      int reactNativeViewId = args.getInt(0);
+      createFragment(root, reactNativeViewId);
     }
+  }
+
+  public void createFragment(FrameLayout root, int reactNativeViewId) {
+    ViewGroup parentView = (ViewGroup) root.findViewById(reactNativeViewId);
+    if (parentView == null) {
+      Log.e("SecureViewManager", "Parent view not found");
+      return;
+    }
+    setupLayout(parentView);
+
+    final SecureViewFragment secureViewFragment = new SecureViewFragment();
+    FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
+    if (activity == null) {
+      Log.e("SecureViewManager", "Activity is null");
+      return;
+    }
+    activity.getSupportFragmentManager()
+            .beginTransaction()
+            .replace(reactNativeViewId, secureViewFragment, String.valueOf(reactNativeViewId))
+            .commit();
   }
 
   @ReactPropGroup(names = { "width", "height" }, customType = "Style")
@@ -87,18 +87,6 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
     if (index == 1) {
       propHeight = value == -1 ? ViewGroup.LayoutParams.MATCH_PARENT : value;
     }
-  }
-
-  public void createFragment(FrameLayout root, int reactNativeViewId) {
-    ViewGroup parentView = (ViewGroup) root.findViewById(reactNativeViewId);
-    setupLayout(parentView);
-
-    final SecureFragment myFragment = new SecureFragment();
-    FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
-    activity.getSupportFragmentManager()
-        .beginTransaction()
-        .replace(reactNativeViewId, myFragment, String.valueOf(reactNativeViewId))
-        .commit();
   }
 
   public void setupLayout(View view) {

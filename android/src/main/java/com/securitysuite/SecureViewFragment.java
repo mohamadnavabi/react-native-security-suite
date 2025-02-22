@@ -1,7 +1,6 @@
 package com.securitysuite;
 
 import android.app.Activity;
-import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -13,8 +12,16 @@ import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-public class SecureFragment extends Fragment {
+import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContext;
+
+public class SecureViewFragment extends Fragment {
   SecureView secureView;
+  ReactContext reactContext;
+
+  public SecureViewFragment(ReactApplicationContext reactContext) {
+    this.reactContext = reactContext;
+  }
 
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup parent, Bundle savedInstanceState) {
@@ -26,26 +33,9 @@ public class SecureFragment extends Fragment {
   @Override
   public void onCreate(@Nullable Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    Log.d("SecureFragment", "onCreate");
-  }
-
-  @Override
-  public void onAttach(Context context) {
-    super.onAttach(context);
-    Log.d("SecureFragment", "onAttach");
-  }
-
-  @Override
-  public void onActivityCreated(@Nullable Bundle savedInstanceState) {
-    super.onActivityCreated(savedInstanceState);
-    Log.d("SecureFragment", "onActivityCreated");
-  }
-
-  @Override
-  public void onViewCreated(View view, Bundle savedInstanceState) {
-    super.onViewCreated(view, savedInstanceState);
-    Log.d("SecureFragment", "onViewCreated");
-    final Activity activity = getActivity();
+    Log.d("SecureViewFragment", "onCreate 11111");
+    final Activity activity = reactContext.getCurrentActivity();
+    Log.d("SecureViewFragment", String.valueOf(activity));
     if (activity != null) {
       activity.runOnUiThread(new Runnable() {
         @Override
@@ -58,22 +48,11 @@ public class SecureFragment extends Fragment {
   }
 
   @Override
-  public void onPause() {
-    super.onPause();
-    Log.d("SecureFragment", "onPause");
-  }
-
-  @Override
-  public void onResume() {
-    super.onResume();
-    Log.d("SecureFragment", "onResume");
-  }
-
-  @Override
   public void onDestroy() {
     super.onDestroy();
-    Log.d("SecureFragment", "onDestroy");
-    final Activity activity = getActivity();
+    Log.d("SecureViewFragment", "onDestroy 11111");
+
+    final Activity activity = reactContext.getCurrentActivity();
     if (activity != null) {
       activity.runOnUiThread(new Runnable() {
         @Override
