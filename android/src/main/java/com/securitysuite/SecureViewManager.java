@@ -37,9 +37,10 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
     return REACT_CLASS;
   }
 
+  @NonNull
   @Override
-  public SecureView createViewInstance(ThemedReactContext reactContext) {
-    return new SecureView(reactContext);
+  protected SecureView createViewInstance(@NonNull ThemedReactContext themedReactContext) {
+    return new SecureView(themedReactContext, reactContext);
   }
 
   @Nullable
@@ -58,6 +59,17 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
     }
   }
 
+  @Override
+  public boolean needsCustomLayoutForChildren() {
+    return true;
+  }
+
+  @Override
+  public void onAfterUpdateTransaction(@NonNull SecureView view) {
+    super.onAfterUpdateTransaction(view);
+    view.requestLayout();
+  }
+
   public void createFragment(FrameLayout root, int reactNativeViewId) {
     ViewGroup parentView = (ViewGroup) root.findViewById(reactNativeViewId);
     if (parentView == null) {
@@ -66,7 +78,7 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
     }
     setupLayout(parentView);
 
-    final SecureViewFragment secureViewFragment = new SecureViewFragment();
+    final SecureViewFragment secureViewFragment = new SecureViewFragment(reactContext);
     FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
     if (activity == null) {
       Log.e("SecureViewManager", "Activity is null");

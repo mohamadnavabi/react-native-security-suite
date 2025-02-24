@@ -1,9 +1,14 @@
 package com.securitysuite;
 
-import android.content.Context;
+import android.app.Activity;
 import android.graphics.Color;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.content.Context;
 
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -11,14 +16,46 @@ import com.facebook.react.uimanager.UIManagerModule;
 import com.facebook.react.uimanager.annotations.ReactProp;
 
 public class SecureView extends FrameLayout {
-  public SecureView(Context context) {
+  ReactApplicationContext reactContext;
+
+  public SecureView(Context context, ReactApplicationContext reactContext) {
     super(context);
+    this.reactContext = reactContext;
   }
 
   @Override
   public void requestLayout() {
     super.requestLayout();
     post(measureAndLayout);
+  }
+
+    @Override
+    protected void onAttachedToWindow() {
+      super.onAttachedToWindow();
+      final Activity activity = reactContext.getCurrentActivity();
+      if (activity != null) {
+        activity.runOnUiThread(() -> {
+          Window window = activity.getWindow();
+          window.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        });
+      }
+  }
+
+    @Override
+    protected void onDetachedFromWindow() {
+      super.onDetachedFromWindow();
+      final Activity activity = reactContext.getCurrentActivity();
+      if (activity != null) {
+        activity.runOnUiThread(() -> {
+          Window window = activity.getWindow();
+          window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        });
+      }
+  }
+
+  @Override
+  public void addView(View child, int index) {
+    super.addView(child, index);
   }
 
   private final Runnable measureAndLayout = () -> {
