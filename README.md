@@ -3,7 +3,12 @@
 Security solutions for React Native both platform Android and iOS
 You can use any of the following:
 
-<ol><li>Android Root device or iOS Jailbreak device detection</li><li>Text Encryption/Decryption</li><li>Secure storage</li><li>Diffie–Hellman key exchange</li><li>SSL Pinning &amp; public key pinning</li><li>Network Logger (Android Chucker - iOS Pulse)</li></ol>
+<ol><li>Android Root device or iOS Jailbreak device detection</li><li>Disable screenshot or screen record</li><li>Text Encryption/Decryption</li><li>Secure storage</li><li>Diffie–Hellman key exchange</li><li>SSL Pinning &amp; public key pinning</li><li>Network Logger (Android Chucker - iOS Pulse)</li></ol>
+
+<div style="display: flex; flex-direction: row;">
+<img src="https://raw.githubusercontent.com/mohamadnavabi/react-native-security-suite/master/pulse.png" />
+<img src="https://raw.githubusercontent.com/mohamadnavabi/react-native-security-suite/master/chucker.gif" />
+</div>
 
 ## Installation
 
@@ -88,23 +93,27 @@ console.log('Decrypted result: ', hardDecrypted);
 ```js
 import { fetch } from 'react-native-security-suite';
 
-const response = await fetch(
-  'https://example.com/api',
-  {
-    method: 'POST', // or any http methods
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: {
-      key: value,
-    },
-    certificates: ['sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX='],
-    validDomains: ['example.com'],
-    timeout: 6000,
+const response = await fetch('https://example.com/api', {
+  method: 'POST', // or any http methods
+  headers: {
+    'Content-Type': 'application/json',
   },
-  __DEV__
-);
+  body: {
+    key: value,
+  },
+  certificates: ['sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX='],
+  validDomains: ['example.com'],
+  timeout: 6000,
+});
 console.log('server response: ', response.json());
+```
+
+7\. Network Logger (Android Chucker - iOS Pulse):
+
+```js
+import { fetch } from 'react-native-security-suite';
+
+fetch(YOUR_REQUEST, __DEV__);
 ```
 
 ## Contributing
