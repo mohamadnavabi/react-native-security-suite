@@ -1,4 +1,4 @@
 #import <React/RCTViewManager.h>
 
-@interface RNSSecureViewManager : RCTViewManager
+@interface SecureViewManager : RCTViewManager
 @end

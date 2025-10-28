@@ -21,7 +21,7 @@ import java.util.Map;
 
 public class SecureViewManager extends ViewGroupManager<SecureView> {
 
-  public static final String REACT_CLASS = "RNSSecureView";
+  public static final String REACT_CLASS = "SecureView";
   public final int COMMAND_CREATE = 1;
   private int propWidth = ViewGroup.LayoutParams.MATCH_PARENT;
   private int propHeight = ViewGroup.LayoutParams.MATCH_PARENT;
@@ -73,7 +73,7 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
   public void createFragment(FrameLayout root, int reactNativeViewId) {
     ViewGroup parentView = (ViewGroup) root.findViewById(reactNativeViewId);
     if (parentView == null) {
-      Log.e("RNSSecureViewManager", "Parent view not found");
+      Log.e("SecureViewManager", "Parent view not found");
       return;
     }
     setupLayout(parentView);
@@ -81,13 +81,13 @@ public class SecureViewManager extends ViewGroupManager<SecureView> {
     final SecureViewFragment secureViewFragment = new SecureViewFragment(reactContext);
     FragmentActivity activity = (FragmentActivity) reactContext.getCurrentActivity();
     if (activity == null) {
-      Log.e("RNSSecureViewManager", "Activity is null");
+      Log.e("SecureViewManager", "Activity is null");
       return;
     }
     activity.getSupportFragmentManager()
-        .beginTransaction()
-        .replace(reactNativeViewId, secureViewFragment, String.valueOf(reactNativeViewId))
-        .commit();
+            .beginTransaction()
+            .replace(reactNativeViewId, secureViewFragment, String.valueOf(reactNativeViewId))
+            .commit();
   }
 
   @ReactPropGroup(names = { "width", "height" }, customType = "Style")
