@@ -351,7 +351,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 📧 Email: 7navabi@gmail.com
 - 🐛 Issues: [GitHub Issues](https://github.com/mohamadnavabi/react-native-security-suite/issues)
-- 📖 Documentation: [GitHub Wiki](https://github.com/mohamadnavabi/react-native-security-suite/wiki)
+- 📖 Documentation: [GitHub Wiki](#)
 
 ---
 
