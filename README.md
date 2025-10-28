@@ -356,7 +356,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div style="display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 20px;">
-<img src="https://raw.githubusercontent.com/mohamadnavabi/react-native-security-suite/master/pulse.png" alt="iOS Pulse Network Monitor" width="200" />
+<img src="https://raw.githubusercontent.com/mohamadnavabi/react-native-security-suite/master/pulse.gif" alt="iOS Pulse Network Monitor" width="200" />
 <img src="https://raw.githubusercontent.com/mohamadnavabi/react-native-security-suite/master/chucker.gif" alt="Android Chucker Network Monitor" width="200" />
 </div>
 
