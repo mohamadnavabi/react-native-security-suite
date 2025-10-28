@@ -6,12 +6,12 @@ import {
   requireNativeComponent,
 } from 'react-native';
 
-const NativeComponent = requireNativeComponent('SecureView');
+const NativeComponent = requireNativeComponent('RNSSecureView');
 
 const createFragment = (viewId: number | null) => {
   if (!UIManager.getViewManagerConfig) return;
 
-  const viewManagerConfig = UIManager.getViewManagerConfig('SecureView');
+  const viewManagerConfig = UIManager.getViewManagerConfig('RNSSecureView');
 
   if (viewManagerConfig.Commands.create) {
     UIManager.dispatchViewManagerCommand(

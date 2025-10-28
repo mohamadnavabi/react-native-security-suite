@@ -1,8 +1,8 @@
 import Foundation
 import React
 
-@objc(SecureViewManager)
-class SecureViewManager: RCTViewManager {
+@objc(RNSSecureViewManager)
+class RNSSecureViewManager: RCTViewManager {
   
   override func view() -> UIView! {
     return SecureView()
