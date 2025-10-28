@@ -1,7 +1,7 @@
 {
   "name": "react-native-security-suite",
   "version": "0.9.16",
-  "description": "Security solution for React Native",
+  "description": "Comprehensive security suite for React Native apps - Root/Jailbreak detection, SSL pinning, encryption, secure storage, screenshot protection, and network monitoring",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
@@ -47,8 +47,25 @@
   },
   "keywords": [
     "react-native",
+    "security",
+    "encryption",
+    "ssl-pinning",
+    "root-detection",
+    "jailbreak-detection",
+    "secure-storage",
+    "screenshot-protection",
+    "network-monitoring",
+    "android",
     "ios",
-    "android"
+    "mobile-security",
+    "cryptography",
+    "diffie-hellman",
+    "certificate-pinning",
+    "chucker",
+    "pulse",
+    "react-native-security",
+    "mobile-app-security",
+    "data-protection"
   ],
   "repository": {
     "type": "git",
