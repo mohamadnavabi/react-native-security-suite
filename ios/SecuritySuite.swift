@@ -5,7 +5,6 @@ import Security
 import CommonCrypto
 import IOSSecuritySuite
 
-@available(iOS 14.0, *)
 @objc(SecuritySuite)
 class SecuritySuite: NSObject {
     var privateKey: String!,
