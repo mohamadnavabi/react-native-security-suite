@@ -46,13 +46,13 @@
 ### Using Yarn
 
 ```bash
-yarn add react-native-security-suite @react-native-async-storage/async-storage
+yarn add react-native-security-suite
 ```
 
 ### Using NPM
 
 ```bash
-npm install react-native-security-suite @react-native-async-storage/async-storage
+npm install react-native-security-suite
 ```
 
 ### iOS Setup
