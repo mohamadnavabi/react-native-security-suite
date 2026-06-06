@@ -8,7 +8,10 @@ const LINKING_ERROR =
 
 export interface SecuritySuiteNativeModule {
   getPublicKey(): Promise<string>;
-  getSharedKey(serverPK: string, options: Record<string, unknown>): Promise<string>;
+  getSharedKey(
+    serverPK: string,
+    options: Record<string, unknown>
+  ): Promise<string>;
   establishSharedKey?(
     serverPK: string,
     options: Record<string, unknown>

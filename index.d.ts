@@ -70,7 +70,12 @@ export enum SecurityErrorCode {
   ROOT_DETECTED = 'ROOT_DETECTED',
   JAILBREAK_DETECTED = 'JAILBREAK_DETECTED',
   FRIDA_DETECTED = 'FRIDA_DETECTED',
+  XPOSED_DETECTED = 'XPOSED_DETECTED',
+  SUBSTRATE_DETECTED = 'SUBSTRATE_DETECTED',
+  MAGISK_DETECTED = 'MAGISK_DETECTED',
   DEBUGGER_DETECTED = 'DEBUGGER_DETECTED',
+  EMULATOR_DETECTED = 'EMULATOR_DETECTED',
+  SECURITY_RISK_THRESHOLD = 'SECURITY_RISK_THRESHOLD',
   SSL_PINNING_FAILED = 'SSL_PINNING_FAILED',
   SECURE_STORAGE_UNAVAILABLE = 'SECURE_STORAGE_UNAVAILABLE',
   CRYPTO_KEY_NOT_FOUND = 'CRYPTO_KEY_NOT_FOUND',
@@ -111,6 +116,14 @@ export interface DeviceEnvironment {
 }
 
 export type RiskLevel = 'low' | 'medium' | 'high';
+
+export interface ProtectionPolicy {
+  blockEmulator?: boolean;
+  blockDebugger?: boolean;
+  blockHooking?: boolean;
+  blockRoot?: boolean;
+  minRiskLevel?: RiskLevel;
+}
 
 export interface SecurityReport {
   device: {
@@ -194,9 +207,18 @@ declare module 'react-native-security-suite' {
     isRooted(): Promise<boolean>;
     isJailbroken(): Promise<boolean>;
     getEnvironment(): Promise<DeviceEnvironment>;
+    isEmulator(): Promise<boolean>;
+    protectEnvironment(
+      policy?: Pick<ProtectionPolicy, 'blockEmulator'>
+    ): Promise<DeviceEnvironment>;
   };
   const RuntimeSecurity: {
     detect(): Promise<RuntimeThreatReport>;
+    isDebuggerAttached(): Promise<boolean>;
+    isHooked(): Promise<boolean>;
+    protect(
+      policy?: Pick<ProtectionPolicy, 'blockDebugger' | 'blockHooking'>
+    ): Promise<RuntimeThreatReport>;
   };
   const AppIntegrity: {
     verify(): Promise<AppIntegrityReport>;
@@ -210,5 +232,22 @@ declare module 'react-native-security-suite' {
   };
   const SecuritySuite: {
     getSecurityReport(): Promise<SecurityReport>;
+    protect(policy?: ProtectionPolicy): Promise<SecurityReport>;
   };
+
+  const DEFAULT_PROTECTION_POLICY: Required<
+    Pick<
+      ProtectionPolicy,
+      'blockEmulator' | 'blockDebugger' | 'blockHooking' | 'blockRoot'
+    >
+  >;
+  function enforceProtection(
+    report: SecurityReport,
+    policy?: ProtectionPolicy
+  ): void;
+  function isEmulatorEnvironment(environment: {
+    isEmulator: boolean;
+    isSimulator: boolean;
+  }): boolean;
+  function isHooked(runtime: RuntimeThreatReport): boolean;
 }

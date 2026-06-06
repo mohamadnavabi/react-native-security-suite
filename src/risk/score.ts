@@ -30,6 +30,10 @@ export function computeRiskScore(input: {
     riskScore += 40;
   }
 
+  if (input.runtime.magiskDetected) {
+    riskScore += 40;
+  }
+
   if (input.runtime.debuggerAttached) {
     riskScore += 20;
   }

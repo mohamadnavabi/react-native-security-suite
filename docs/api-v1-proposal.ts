@@ -99,13 +99,25 @@ export interface SecureStorageOptions {
 }
 
 export interface SecureStorageNamespace {
-  setItem(key: string, value: string, options?: SecureStorageOptions): Promise<void>;
+  setItem(
+    key: string,
+    value: string,
+    options?: SecureStorageOptions
+  ): Promise<void>;
   getItem(key: string, options?: SecureStorageOptions): Promise<string | null>;
   removeItem(key: string, options?: SecureStorageOptions): Promise<void>;
-  getAllKeys(options?: Pick<SecureStorageOptions, 'service'>): Promise<string[]>;
+  getAllKeys(
+    options?: Pick<SecureStorageOptions, 'service'>
+  ): Promise<string[]>;
   clear(options?: Pick<SecureStorageOptions, 'service'>): Promise<void>;
-  multiSet(pairs: Array<[string, string]>, options?: SecureStorageOptions): Promise<void>;
-  multiGet(keys: string[], options?: SecureStorageOptions): Promise<readonly [string, string | null][]>;
+  multiSet(
+    pairs: Array<[string, string]>,
+    options?: SecureStorageOptions
+  ): Promise<void>;
+  multiGet(
+    keys: string[],
+    options?: SecureStorageOptions
+  ): Promise<readonly [string, string | null][]>;
   multiRemove(keys: string[], options?: SecureStorageOptions): Promise<void>;
 }
 
@@ -114,14 +126,20 @@ export interface SecureStorageNamespace {
 export interface CryptoNamespace {
   randomBytes(length: number): Promise<string>; // base64
   randomUUID(): Promise<string>;
-  getPublicKey(options?: { alias?: string; algorithm?: 'X25519' | 'P-256' }): Promise<string>;
+  getPublicKey(options?: {
+    alias?: string;
+    algorithm?: 'X25519' | 'P-256';
+  }): Promise<string>;
   establishSharedKey(
     serverPublicKey: string,
     options?: { alias?: string; ephemeral?: boolean; returnSharedKey?: boolean }
   ): Promise<string | void>;
   encrypt(plaintext: string, options?: { alias?: string }): Promise<string>;
   decrypt(ciphertext: string, options?: { alias?: string }): Promise<string>;
-  generateKeyPair(options: { alias: string; algorithm: 'X25519' | 'P-256' | 'Ed25519' }): Promise<void>;
+  generateKeyPair(options: {
+    alias: string;
+    algorithm: 'X25519' | 'P-256' | 'Ed25519';
+  }): Promise<void>;
   rotateKey(alias: string): Promise<void>;
   deleteKey(alias: string): Promise<void>;
 }
@@ -147,7 +165,10 @@ export interface JWSNamespace {
     detached?: boolean;
     canonical?: boolean;
   }): Promise<string>;
-  generateKeyPair(options: { alias: string; algorithm: 'ES256' | 'EdDSA' }): Promise<void>;
+  generateKeyPair(options: {
+    alias: string;
+    algorithm: 'ES256' | 'EdDSA';
+  }): Promise<void>;
   exportPublicKey(alias: string): Promise<string>;
 }
 
@@ -232,7 +253,10 @@ export interface SecurityReport {
 
 export interface SecuritySuiteConfig {
   secureNetwork?: { requireHttps?: boolean; logger?: NetworkLoggerConfig };
-  secureStorage?: { accessibility?: KeychainAccessibility; requireAuthentication?: boolean };
+  secureStorage?: {
+    accessibility?: KeychainAccessibility;
+    requireAuthentication?: boolean;
+  };
   crypto?: { returnSharedKey?: boolean };
 }
 

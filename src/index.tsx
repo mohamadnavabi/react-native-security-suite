@@ -30,12 +30,24 @@ export type {
   CipherAlgorithm,
 } from './legacy/cryptoOptions';
 
-export { SecurityError, SecurityErrorCode, mapNativeError, isSecurityError } from './errors';
+export {
+  SecurityError,
+  SecurityErrorCode,
+  mapNativeError,
+  isSecurityError,
+} from './errors';
 export { DeviceSecurity } from './device';
 export { RuntimeSecurity } from './runtime';
 export { AppIntegrity } from './integrity';
 export { Crypto } from './crypto';
 export { SecuritySuite } from './securitySuite';
+export {
+  DEFAULT_PROTECTION_POLICY,
+  enforceProtection,
+  isEmulatorEnvironment,
+  isHooked,
+} from './protection';
+export type { ProtectionPolicy } from './protection';
 export type {
   RuntimeThreatReport,
   AppIntegrityReport,
@@ -146,7 +158,10 @@ export const getSharedKey = (
   serverPublicKey: string,
   options?: CryptoOptions
 ): Promise<string> =>
-  NativeSecuritySuiteModule.getSharedKey(serverPublicKey, toNativeCryptoOptions(options));
+  NativeSecuritySuiteModule.getSharedKey(
+    serverPublicKey,
+    toNativeCryptoOptions(options)
+  );
 
 export const encryptBySharedKey = (
   input: string,
@@ -155,7 +170,10 @@ export const encryptBySharedKey = (
   if (!input || typeof input !== 'string') {
     return Promise.reject(new Error('Input must be a non-empty string'));
   }
-  return NativeSecuritySuiteModule.encrypt(input, toNativeCryptoOptions(options));
+  return NativeSecuritySuiteModule.encrypt(
+    input,
+    toNativeCryptoOptions(options)
+  );
 };
 
 export const decryptBySharedKey = (
@@ -165,7 +183,10 @@ export const decryptBySharedKey = (
   if (!input || typeof input !== 'string') {
     return Promise.reject(new Error('Input must be a non-empty string'));
   }
-  return NativeSecuritySuiteModule.decrypt(input, toNativeCryptoOptions(options));
+  return NativeSecuritySuiteModule.decrypt(
+    input,
+    toNativeCryptoOptions(options)
+  );
 };
 
 export const generateJWS = (options: GenerateJWSOptions): Promise<string> => {
@@ -206,11 +227,13 @@ export const deobfuscate = (input: string, secret: string): Promise<string> =>
 
 export const getDeviceId = (): Promise<string> =>
   new Promise((resolve, reject) => {
-    NativeSecuritySuiteModule.getDeviceId((result: string | null, error: string | null) => {
-      if (error !== null) reject(error);
-      else if (result !== null) resolve(result);
-      else reject(new Error('GET_DEVICE_ID_ERROR'));
-    });
+    NativeSecuritySuiteModule.getDeviceId(
+      (result: string | null, error: string | null) => {
+        if (error !== null) reject(error);
+        else if (result !== null) resolve(result);
+        else reject(new Error('GET_DEVICE_ID_ERROR'));
+      }
+    );
   });
 
 /**
@@ -281,7 +304,10 @@ export const decrypt = (
 
 const SECURE_STORAGE_FAILED = 'Secure storage operation failed';
 
-function wrapSecureStorage<T>(operation: string, promise: Promise<T>): Promise<T> {
+function wrapSecureStorage<T>(
+  operation: string,
+  promise: Promise<T>
+): Promise<T> {
   return promise.catch((error: unknown) => {
     const detail =
       error instanceof Error
@@ -332,10 +358,12 @@ export const SecureStorage = {
     keys: string[]
   ): Promise<readonly [string, string | null][]> =>
     Promise.all(
-      keys.map(async (key): Promise<[string, string | null]> => [
-        key,
-        await SecureStorage.getItem(key),
-      ])
+      keys.map(
+        async (key): Promise<[string, string | null]> => [
+          key,
+          await SecureStorage.getItem(key),
+        ]
+      )
     ),
 
   multiRemove: async (keys: string[]): Promise<void> => {
@@ -385,7 +413,9 @@ export function fetch(
           });
         } else {
           const errorJson = jsonParse(
-            typeof error?.error === 'string' ? error.error : JSON.stringify(error)
+            typeof error?.error === 'string'
+              ? error.error
+              : JSON.stringify(error)
           );
           reject({
             json: () => errorJson,

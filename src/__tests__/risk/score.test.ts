@@ -52,6 +52,22 @@ describe('computeRiskScore', () => {
     expect(result.riskLevel).toBe('medium');
   });
 
+  it('adds magisk weight', () => {
+    const result = computeRiskScore({
+      isRooted: false,
+      isJailbroken: false,
+      runtime: {
+        ...baseRuntime,
+        magiskDetected: true,
+      },
+      app: baseApp,
+      environment: baseEnvironment,
+    });
+
+    expect(result.riskScore).toBe(40);
+    expect(result.riskLevel).toBe('medium');
+  });
+
   it('adds frida and debugger weights', () => {
     const result = computeRiskScore({
       isRooted: false,
@@ -80,7 +96,11 @@ describe('computeRiskScore', () => {
         debuggerAttached: true,
       },
       app: { ...baseApp, tampered: true },
-      environment: { isEmulator: true, isSimulator: false, indicators: ['qemu'] },
+      environment: {
+        isEmulator: true,
+        isSimulator: false,
+        indicators: ['qemu'],
+      },
     });
 
     expect(result.riskScore).toBe(100);

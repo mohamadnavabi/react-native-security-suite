@@ -29,6 +29,13 @@ const runtime = await RuntimeSecurity.detect();
 const integrity = await AppIntegrity.verify();
 const environment = await DeviceSecurity.getEnvironment();
 
+// Protection (throws SecurityError on configured threats)
+await SecuritySuite.protect({
+  blockEmulator: true,
+  blockDebugger: true,
+  blockHooking: true,
+});
+
 // Secure key exchange (does not return key to JS by default)
 await Crypto.establishSharedKey(serverPublicKey);
 await encryptBySharedKey('secret message'); // legacy bridge encrypt

@@ -36,10 +36,7 @@ export interface CryptoOptions {
   gcmIvLength?: number;
 }
 
-function requireCryptoOption<T>(
-  value: T | undefined | null,
-  key: string
-): T {
+function requireCryptoOption<T>(value: T | undefined | null, key: string): T {
   if (value === undefined || value === null || value === '') {
     throw new Error(`Missing required crypto option: ${key}`);
   }

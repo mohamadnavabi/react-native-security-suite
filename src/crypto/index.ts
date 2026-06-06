@@ -33,7 +33,9 @@ export const Crypto = {
       return native.establishSharedKey(serverPublicKey, nativeOptions);
     }
 
-    return native.getSharedKey(serverPublicKey, nativeOptions).then(() => undefined);
+    return native
+      .getSharedKey(serverPublicKey, nativeOptions)
+      .then(() => undefined);
   },
 };
 

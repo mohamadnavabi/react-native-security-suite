@@ -1,5 +1,11 @@
 import { getNativeModule } from '../native/bridge';
-import type { RuntimeThreatReport } from '../types/detection';
+import {
+  DEFAULT_PROTECTION_POLICY,
+  enforceProtection,
+  isHooked,
+  type ProtectionPolicy,
+} from '../protection';
+import type { RuntimeThreatReport, SecurityReport } from '../types/detection';
 
 function parseRuntimeReport(raw: Record<string, unknown>): RuntimeThreatReport {
   const report: RuntimeThreatReport = {
@@ -37,6 +43,55 @@ export const RuntimeSecurity = {
     return getNativeModule()
       .runtimeDetect()
       .then((result) => parseRuntimeReport(result));
+  },
+
+  async isDebuggerAttached(): Promise<boolean> {
+    const report = await RuntimeSecurity.detect();
+    return report.debuggerAttached;
+  },
+
+  async isHooked(): Promise<boolean> {
+    const report = await RuntimeSecurity.detect();
+    return isHooked(report);
+  },
+
+  async protect(
+    policy: Pick<ProtectionPolicy, 'blockDebugger' | 'blockHooking'> = {}
+  ): Promise<RuntimeThreatReport> {
+    const runtime = await RuntimeSecurity.detect();
+    const resolved = {
+      ...DEFAULT_PROTECTION_POLICY,
+      ...policy,
+    };
+
+    enforceProtection(
+      {
+        device: {
+          isRooted: false,
+          isJailbroken: false,
+          isEmulator: false,
+          isSimulator: false,
+          environmentIndicators: [],
+        },
+        runtime,
+        app: {
+          validSignature: true,
+          debuggable: false,
+          tampered: false,
+          buildType: 'release',
+        },
+        riskScore: 0,
+        riskLevel: 'low',
+      } satisfies SecurityReport,
+      {
+        blockEmulator: false,
+        blockRoot: false,
+        blockDebugger: resolved.blockDebugger,
+        blockHooking: resolved.blockHooking,
+      }
+    );
+
+    return runtime;
   },
 };
 

@@ -125,7 +125,9 @@ export function validateJwsHeaders(headers: unknown): JwsHeaders {
   }
 
   const result: JwsHeaders = {};
-  for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
+  for (const [key, value] of Object.entries(
+    headers as Record<string, unknown>
+  )) {
     validateJwsHeaderKey(key);
     result[key] = validateJwsHeaderValue(key, value);
   }

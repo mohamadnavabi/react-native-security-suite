@@ -3,26 +3,36 @@ import IOSSecuritySuite
 import Darwin
 
 enum RuntimeDetector {
-  private static let fridaPorts: [UInt16] = [27042, 27043]
+  private static let fridaPorts: [UInt16] = [27042, 27043, 4444]
+  private static let fridaPaths = [
+    "/usr/sbin/frida-server",
+    "/usr/local/bin/frida-server",
+    "/var/jb/usr/sbin/frida-server",
+    "/Library/MobileSubstrate/MobileSubstrate.dylib",
+  ]
   private static let suspiciousKeywords = [
     "frida", "substrate", "cycript", "libhooker", "ellekit", "substitute", "xposed", "lsposed"
   ]
+  private static let portConnectTimeoutMs: Int32 = 300
 
   static func detect() -> [String: Any] {
     let suspiciousLibraries = scanLoadedLibraries()
     let suspiciousPorts = scanFridaPorts()
     let reverseEngineered = IOSSecuritySuite.amIReverseEngineered()
+    let fridaPathsDetected = hasFridaPaths()
     let fridaDetected = hasDyldInsert()
       || reverseEngineered
+      || fridaPathsDetected
       || !suspiciousLibraries.isEmpty
       || !suspiciousPorts.isEmpty
       || canConnectToFrida()
     let debuggerAttached = isDebuggerAttached()
-    let substrateDetected = suspiciousLibraries.contains(where: {
-      $0.lowercased().contains("substrate")
-        || $0.lowercased().contains("substitute")
-        || $0.lowercased().contains("ellekit")
-    })
+    let substrateDetected = fridaPathsDetected
+      || suspiciousLibraries.contains(where: {
+        $0.lowercased().contains("substrate")
+          || $0.lowercased().contains("substitute")
+          || $0.lowercased().contains("ellekit")
+      })
 
     return [
       "debuggerAttached": debuggerAttached,
@@ -31,6 +41,10 @@ enum RuntimeDetector {
       "suspiciousLibraries": suspiciousLibraries,
       "suspiciousPorts": suspiciousPorts,
     ]
+  }
+
+  private static func hasFridaPaths() -> Bool {
+    fridaPaths.contains { FileManager.default.fileExists(atPath: $0) }
   }
 
   private static func hasDyldInsert() -> Bool {
@@ -79,6 +93,17 @@ enum RuntimeDetector {
       return false
     }
     defer { close(socketFd) }
+
+    var timeout = timeval(
+      tv_sec: portConnectTimeoutMs / 1000,
+      tv_usec: (portConnectTimeoutMs % 1000) * 1000
+    )
+    _ = withUnsafePointer(to: &timeout) {
+      setsockopt(socketFd, SOL_SOCKET, SO_RCVTIMEO, $0, socklen_t(MemoryLayout<timeval>.size))
+    }
+    _ = withUnsafePointer(to: &timeout) {
+      setsockopt(socketFd, SOL_SOCKET, SO_SNDTIMEO, $0, socklen_t(MemoryLayout<timeval>.size))
+    }
 
     let result = withUnsafePointer(to: &addr) {
       $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {

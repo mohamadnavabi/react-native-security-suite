@@ -21,7 +21,9 @@ import {
 } from 'react-native-security-suite';
 
 export default function App() {
-  const [reportSummary, setReportSummary] = useState('Loading security report...');
+  const [reportSummary, setReportSummary] = useState(
+    'Loading security report...'
+  );
 
   useEffect(() => {
     // Request permission for the network logger notification

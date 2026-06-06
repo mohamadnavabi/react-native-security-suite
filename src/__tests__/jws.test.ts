@@ -17,7 +17,7 @@ function base64UrlEncode(input: string | Uint8Array): string {
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+    .replace(/[=]+$/g, '');
 }
 
 function buildProtectedHeader(
@@ -40,11 +40,14 @@ function signJws(
   protectedHeader: string,
   payloadString: string
 ): string {
-  const encodedPayload = payloadString
-    ? base64UrlEncode(payloadString)
-    : '';
+  const encodedPayload = payloadString ? base64UrlEncode(payloadString) : '';
   const signingInput = `${protectedHeader}.${encodedPayload}`;
-  const hash = algorithm === 'HS384' ? 'sha384' : algorithm === 'HS512' ? 'sha512' : 'sha256';
+  const hash =
+    algorithm === 'HS384'
+      ? 'sha384'
+      : algorithm === 'HS512'
+        ? 'sha512'
+        : 'sha256';
   const signature = crypto
     .createHmac(hash, secret)
     .update(signingInput, 'utf8')
@@ -94,15 +97,15 @@ describe('resolveJwsAlgorithm', () => {
   });
 
   it('uses headers.alg when options.algorithm is omitted', () => {
-    expect(resolveJwsAlgorithm(undefined, { alg: 'HS384', kid: 'test-key' })).toBe(
-      'HS384'
-    );
+    expect(
+      resolveJwsAlgorithm(undefined, { alg: 'HS384', kid: 'test-key' })
+    ).toBe('HS384');
   });
 
   it('throws on algorithm mismatch', () => {
-    expect(() =>
-      resolveJwsAlgorithm('HS512', { alg: 'HS256' })
-    ).toThrow('algorithm mismatch');
+    expect(() => resolveJwsAlgorithm('HS512', { alg: 'HS256' })).toThrow(
+      'algorithm mismatch'
+    );
   });
 });
 
@@ -206,6 +209,8 @@ describe('compact JWS reference vectors', () => {
   });
 
   it('throws for unsupported algorithms', () => {
-    expect(() => validateJwsAlgorithm('RS256')).toThrow('Unsupported JWS algorithm');
+    expect(() => validateJwsAlgorithm('RS256')).toThrow(
+      'Unsupported JWS algorithm'
+    );
   });
 });

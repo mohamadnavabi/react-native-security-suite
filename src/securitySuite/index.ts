@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { AppIntegrity } from '../integrity';
 import { DeviceSecurity } from '../device';
 import { RuntimeSecurity } from '../runtime';
+import { enforceProtection, type ProtectionPolicy } from '../protection';
 import { computeRiskScore } from '../risk/score';
 import type { SecurityReport } from '../types/detection';
 
@@ -39,6 +40,12 @@ export const SecuritySuite = {
       riskScore,
       riskLevel,
     };
+  },
+
+  async protect(policy?: ProtectionPolicy): Promise<SecurityReport> {
+    const report = await SecuritySuite.getSecurityReport();
+    enforceProtection(report, policy);
+    return report;
   },
 };
 

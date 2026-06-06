@@ -2,7 +2,10 @@ import { mapNativeError, SecurityError, SecurityErrorCode } from '../errors';
 
 describe('SecurityError', () => {
   it('maps native secure storage codes', () => {
-    const error = mapNativeError({ code: 'SECURE_STORAGE_ERROR', message: 'KeyStore failed' });
+    const error = mapNativeError({
+      code: 'SECURE_STORAGE_ERROR',
+      message: 'KeyStore failed',
+    });
 
     expect(error).toBeInstanceOf(SecurityError);
     expect((error as SecurityError).code).toBe(

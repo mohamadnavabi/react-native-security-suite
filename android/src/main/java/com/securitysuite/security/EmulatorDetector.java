@@ -26,6 +26,7 @@ public final class EmulatorDetector {
 
     collectBuildIndicators(indicators);
     collectQemuIndicators(indicators);
+    collectTelephonyIndicators(indicators);
     collectSensorIndicators(context, indicators);
 
     RootBeer rootBeer = new RootBeer(context);
@@ -88,6 +89,13 @@ public final class EmulatorDetector {
       if (containsAny(value, "goldfish", "ranchu", "qemu", "sdk_gphone", "emulator")) {
         indicators.add(prop);
       }
+    }
+  }
+
+  private static void collectTelephonyIndicators(List<String> indicators) {
+    String telephony = getSystemProperty("ro.telephony.call_ring.multiple");
+    if (telephony != null && !telephony.isEmpty()) {
+      indicators.add("ro.telephony.call_ring.multiple");
     }
   }
 

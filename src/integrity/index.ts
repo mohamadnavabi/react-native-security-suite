@@ -8,7 +8,9 @@ function parseBuildType(value: unknown): BuildType {
   return 'release';
 }
 
-function parseIntegrityReport(raw: Record<string, unknown>): AppIntegrityReport {
+function parseIntegrityReport(
+  raw: Record<string, unknown>
+): AppIntegrityReport {
   const report: AppIntegrityReport = {
     validSignature: Boolean(raw.validSignature),
     debuggable: Boolean(raw.debuggable),
@@ -24,7 +26,10 @@ function parseIntegrityReport(raw: Record<string, unknown>): AppIntegrityReport 
     report.signingCertificateSha256 = raw.signingCertificateSha256;
   }
 
-  if (raw.installerPackage === null || typeof raw.installerPackage === 'string') {
+  if (
+    raw.installerPackage === null ||
+    typeof raw.installerPackage === 'string'
+  ) {
     report.installerPackage = raw.installerPackage as string | null;
   }
 

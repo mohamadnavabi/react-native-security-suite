@@ -17,6 +17,10 @@
 
 - **Root Detection**: Detect rooted Android devices
 - **Jailbreak Detection**: Detect jailbroken iOS devices
+- **Emulator/Simulator Detection**: Heuristic checks for Android emulators and the iOS Simulator
+- **Debugger Detection**: Detect debuggers attached to the app process
+- **Hooking Detection**: Detect Frida, Xposed/LSPosed, Substrate, and Magisk instrumentation
+- **Runtime Protection**: Enforce policies that throw structured `SecurityError` on threats
 - **Screenshot Protection**: Prevent screenshots and screen recordings
 - **SSL Certificate Pinning**: Secure network communications
 - **Public Key Pinning**: Advanced certificate validation
@@ -111,7 +115,59 @@ const checkDeviceSecurity = async () => {
 };
 ```
 
-### 2. Screenshot Protection
+### 2. Emulator, Debugger, and Hooking Detection
+
+Run native runtime and environment checks, then optionally enforce a protection policy at app startup:
+
+```typescript
+import {
+  SecuritySuite,
+  RuntimeSecurity,
+  DeviceSecurity,
+  SecurityError,
+  isSecurityError,
+} from 'react-native-security-suite';
+
+// Advisory report with risk scoring
+const report = await SecuritySuite.getSecurityReport();
+console.log(report.riskLevel, report.runtime, report.device);
+
+// Targeted checks
+const isSimulator = await DeviceSecurity.isEmulator();
+const debuggerAttached = await RuntimeSecurity.isDebuggerAttached();
+const hooked = await RuntimeSecurity.isHooked();
+
+// Protection — throws SecurityError when a configured threat is detected
+try {
+  await SecuritySuite.protect({
+    blockEmulator: true,
+    blockDebugger: true,
+    blockHooking: true,
+    blockRoot: false, // opt in to root/jailbreak blocking
+  });
+} catch (error) {
+  if (isSecurityError(error)) {
+    // error.code: EMULATOR_DETECTED | DEBUGGER_DETECTED | FRIDA_DETECTED | ...
+    console.warn('Blocked startup:', error.code, error.details);
+  }
+}
+
+// Granular protection
+await DeviceSecurity.protectEnvironment();
+await RuntimeSecurity.protect({ blockDebugger: true, blockHooking: true });
+```
+
+**Detection signals (native, heuristic):**
+
+| Category | Android | iOS |
+|----------|---------|-----|
+| Emulator/Simulator | Build props, QEMU, sensors, telephony, RootBeer | `TARGET_OS_SIMULATOR`, IOSSecuritySuite, `hw.model` |
+| Debugger | `Debug.isDebuggerConnected`, TracerPid | IOSSecuritySuite, `P_TRACED` sysctl |
+| Hooking | `/proc/self/maps`, Frida ports/threads/fds, Xposed, Magisk | Dyld insert env, loaded dylibs, Frida ports/paths, Substrate |
+
+Client-side checks are advisory. Combine with server-side policy for enforcement.
+
+### 3. Screenshot Protection
 
 Protect sensitive content from screenshots and screen recordings:
 
@@ -135,7 +191,7 @@ const SensitiveScreen = () => {
 };
 ```
 
-### 3. Obfuscation (local only)
+### 4. Obfuscation (local only)
 
 Obfuscation requires an explicit secret and is intended for non-sensitive local encoding — not for credentials, tokens, or PII at rest. Use `SecureStorage` for persisted secrets.
 
@@ -148,7 +204,7 @@ const decoded = await deobfuscate(encoded, 'app-specific-secret');
 
 > `encrypt()` / `decrypt()` remain available but are deprecated. They now require an explicit `secretKey` and should be replaced with `obfuscate()` / `deobfuscate()` or `SecureStorage`.
 
-### 4. Secure Storage
+### 5. Secure Storage
 
 Store sensitive data in hardware-backed encrypted storage. On **iOS**, values are stored in the Keychain (`kSecClassGenericPassword`). On **Android**, values are encrypted with **EncryptedSharedPreferences** backed by Android Keystore (`AES256_GCM`).
 
@@ -200,7 +256,7 @@ const handleSecureStorage = async () => {
 
 If a native read/write fails (for example, KeyStore initialization errors on Android), the Promise rejects with a clear `Secure storage operation failed` error.
 
-### 5. Diffie-Hellman Key Exchange
+### 6. Diffie-Hellman Key Exchange
 
 Derive a shared encryption key from the client and server public keys. **All cryptographic algorithms and GCM lengths must be supplied by your application** — the native layer does not apply defaults.
 
@@ -281,7 +337,7 @@ const cryptoOptions: CryptoOptions = {
 };
 ```
 
-### 6. JWS Generation (RFC 7515)
+### 7. JWS Generation (RFC 7515)
 
 Generate [RFC 7515](https://datatracker.ietf.org/doc/html/rfc7515) compact JWS tokens. Supported algorithms: **HS256**, **HS384**, **HS512**. An explicit `secret` is always required.
 
@@ -322,7 +378,7 @@ const jws = await generateJWS({
 
 > **Security note:** HS* JWS on mobile uses a client-side shared secret. It helps with request integrity when combined with TLS, but it is not proof against a fully compromised client.
 
-### 7. Fetch Request Signing with JWS
+### 8. Fetch Request Signing with JWS
 
 Pass a `jws` object on `fetch` options. The signed token is sent as an HTTP header (default: `X-Request-Signature`).
 
@@ -379,7 +435,7 @@ jws: {
 
 **Migration from legacy options:** `options.keyId`, `options.requestId`, and top-level `options.secret` are deprecated. Use `options.jws` with `secret`, `headers.kid`, and `headers.request_id` instead. Legacy signing always used detached HS256 and the `X-JWS-Signature` header.
 
-### 8. SSL Certificate Pinning
+### 9. SSL Certificate Pinning
 
 Secure your API communications with certificate pinning:
 
@@ -415,7 +471,7 @@ const secureApiCall = async () => {
 };
 ```
 
-### 9. Network Monitoring & Debugging
+### 10. Network Monitoring & Debugging
 
 Monitor network requests in development:
 

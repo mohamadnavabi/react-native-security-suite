@@ -10,7 +10,9 @@ jest.mock('react-native', () => ({
   },
   Platform: {
     OS: 'ios',
-    select: jest.fn((options: { ios?: unknown; default?: unknown }) => options.ios),
+    select: jest.fn(
+      (options: { ios?: unknown; default?: unknown }) => options.ios
+    ),
   },
   requireNativeComponent: jest.fn(() => 'SecureView'),
   UIManager: {
