@@ -8,8 +8,6 @@ import android.os.Build;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
-import com.scottyab.rootbeer.RootBeer;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -28,11 +26,6 @@ public final class EmulatorDetector {
     collectQemuIndicators(indicators);
     collectTelephonyIndicators(indicators);
     collectSensorIndicators(context, indicators);
-
-    RootBeer rootBeer = new RootBeer(context);
-    if (rootBeer.isEmulator()) {
-      indicators.add("RootBeer.isEmulator");
-    }
 
     result.putBoolean("isEmulator", !indicators.isEmpty());
     result.putBoolean("isSimulator", false);

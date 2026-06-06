@@ -233,11 +233,10 @@ public class Sslpinning {
     if (options.hasKey("loggerIsEnabled")
         && options.getBoolean("loggerIsEnabled")
         && BuildConfig.DEBUG) {
-      ChuckerInterceptor.Builder chuckerBuilder = new ChuckerInterceptor.Builder(context);
-      for (String header : HeaderSanitizer.SENSITIVE_HEADERS) {
-        chuckerBuilder.redactHeader(header);
-      }
-      builder.addInterceptor(chuckerBuilder.build());
+      ChuckerInterceptor chuckerInterceptor = new ChuckerInterceptor.Builder(context)
+          .redactHeaders(HeaderSanitizer.SENSITIVE_HEADERS.toArray(new String[0]))
+          .build();
+      builder.addInterceptor(chuckerInterceptor);
     }
 
     return builder.build();
