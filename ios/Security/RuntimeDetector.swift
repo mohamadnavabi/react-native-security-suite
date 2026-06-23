@@ -1,6 +1,7 @@
 import Foundation
 import IOSSecuritySuite
 import Darwin
+import MachO
 
 enum RuntimeDetector {
   private static let fridaPorts: [UInt16] = [27042, 27043, 4444]
@@ -95,8 +96,8 @@ enum RuntimeDetector {
     defer { close(socketFd) }
 
     var timeout = timeval(
-      tv_sec: portConnectTimeoutMs / 1000,
-      tv_usec: (portConnectTimeoutMs % 1000) * 1000
+      tv_sec: Int(portConnectTimeoutMs / 1000),
+      tv_usec: Int32((portConnectTimeoutMs % 1000) * 1000)
     )
     _ = withUnsafePointer(to: &timeout) {
       setsockopt(socketFd, SOL_SOCKET, SO_RCVTIMEO, $0, socklen_t(MemoryLayout<timeval>.size))

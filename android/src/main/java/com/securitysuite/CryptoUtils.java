@@ -15,14 +15,41 @@ import java.util.regex.Pattern;
  * key-agreement output or single-pass SHA-256 to derive independent symmetric keys.
  */
 public final class CryptoUtils {
-  public static final String HKDF_SALT = "react-native-security-suite";
-  public static final String HKDF_INFO_ENCRYPTION = "rss-encryption-v1";
-  public static final String HKDF_INFO_HMAC = "rss-hmac-v1";
+  private static volatile byte[] hkdfSalt;
+  private static volatile byte[] hkdfInfoEncryption;
+  private static volatile byte[] hkdfInfoHmac;
 
   private static final Pattern SAFE_JWS_HEADER_KEY = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_-]*$");
   private static final Pattern SAFE_JWS_VALUE = Pattern.compile("^[\\x20-\\x7E]+$");
 
   private CryptoUtils() {}
+
+  public static void setHkdfConfig(byte[] salt, byte[] infoEncryption, byte[] infoHmac) {
+    if (salt == null || salt.length < 16) {
+      throw new IllegalArgumentException("hkdf.salt must be at least 16 bytes");
+    }
+    if (infoEncryption == null || infoEncryption.length == 0) {
+      throw new IllegalArgumentException("hkdf.encryptionInfo is required");
+    }
+    if (infoHmac == null || infoHmac.length == 0) {
+      throw new IllegalArgumentException("hkdf.hmacInfo is required");
+    }
+    hkdfSalt = salt.clone();
+    hkdfInfoEncryption = infoEncryption.clone();
+    hkdfInfoHmac = infoHmac.clone();
+  }
+
+  public static boolean isHkdfConfigured() {
+    return hkdfSalt != null && hkdfInfoEncryption != null && hkdfInfoHmac != null;
+  }
+
+  private static void requireHkdfConfigured() {
+    if (!isHkdfConfigured()) {
+      throw new IllegalStateException(
+          "HKDF is not configured. Call SecuritySuite.initialize() before crypto APIs."
+      );
+    }
+  }
 
   /** RFC 5869 HKDF expand/extract using the configured HMAC algorithm. */
   public static byte[] hkdf(byte[] ikm, byte[] salt, byte[] info, int length, String macAlgorithm)
@@ -61,20 +88,22 @@ public final class CryptoUtils {
   }
 
   public static byte[] deriveEncryptionKey(byte[] sharedSecret, String macAlgorithm) throws Exception {
+    requireHkdfConfigured();
     return hkdf(
         sharedSecret,
-        HKDF_SALT.getBytes(StandardCharsets.UTF_8),
-        HKDF_INFO_ENCRYPTION.getBytes(StandardCharsets.UTF_8),
+        hkdfSalt,
+        hkdfInfoEncryption,
         32,
         macAlgorithm
     );
   }
 
   public static byte[] deriveHmacKey(byte[] sharedSecret, String macAlgorithm) throws Exception {
+    requireHkdfConfigured();
     return hkdf(
         sharedSecret,
-        HKDF_SALT.getBytes(StandardCharsets.UTF_8),
-        HKDF_INFO_HMAC.getBytes(StandardCharsets.UTF_8),
+        hkdfSalt,
+        hkdfInfoHmac,
         32,
         macAlgorithm
     );
@@ -119,7 +148,7 @@ public final class CryptoUtils {
 
   public static String validateJwsAlgorithm(String algorithm) throws IllegalArgumentException {
     if (algorithm == null || algorithm.isEmpty()) {
-      return "HS256";
+      throw new IllegalArgumentException("JWS algorithm is required");
     }
     switch (algorithm) {
       case "HS256":

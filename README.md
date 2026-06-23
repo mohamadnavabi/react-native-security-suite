@@ -28,7 +28,7 @@
 ### Data Security & Encryption
 
 - **Secure Storage**: Hardware-backed encrypted storage (Keychain on iOS, EncryptedSharedPreferences on Android)
-- **Diffie-Hellman Key Exchange**: Application-defined algorithms and GCM parameters via `CryptoOptions`
+- **Diffie-Hellman Key Exchange**: App-defined `CryptoOptions` only — **no algorithm defaults ship with this package**
 - **Shared-Key Encryption**: AES-GCM encrypt/decrypt using a derived shared secret
 - **Obfuscation**: Local string obfuscation with an explicit secret (not for credentials at rest)
 
@@ -64,6 +64,34 @@ npm install react-native-security-suite
 
 ```bash
 cd ios && pod install
+```
+
+## 🔐 Crypto profile policy
+
+This library is **open source**. Anything baked into the package — default algorithms, key sizes, cipher names — is visible to anyone who reads the source or reverse-engineers an app.
+
+**Therefore:**
+
+- There are **no** `DEFAULT_CRYPTO_OPTIONS`, `DEFAULT_KEY_PROFILE`, or native `CryptoConfig.defaults()`.
+- Every crypto call (`getPublicKey`, `establishSharedKey`, `encrypt`, `decrypt`) **requires** a `CryptoOptions` object from **your** application.
+- Define `cryptoOptions` once in your app (or load from remote config) and reuse the same object for the full key-exchange → encrypt → login flow.
+- The profile **must match your backend** exactly. Mismatched options produce wrong shared keys or undecryptable payloads.
+
+Hiding algorithm choice in the library does not add real security — ECDH and AES-GCM are standard. Protection comes from **ephemeral key agreement**, **native key storage**, and **request signing**, not from obscuring cipher names in npm.
+
+```typescript
+// Define in YOUR app — not in react-native-security-suite
+import type { CryptoOptions } from 'react-native-security-suite';
+
+export const cryptoOptions: CryptoOptions = {
+  keyAgreementAlgorithm: 'ECDH',
+  keyType: 'EC',
+  encryptionKeyAlgorithm: 'AES',
+  hmacAlgorithm: 'HmacSHA256',
+  cipher: 'AES/GCM/NoPadding',
+  tagLength: 128,
+  ivLength: 12,
+};
 ```
 
 ## 📁 Project Structure
@@ -258,42 +286,34 @@ If a native read/write fails (for example, KeyStore initialization errors on And
 
 ### 6. Diffie-Hellman Key Exchange
 
-Derive a shared encryption key from the client and server public keys. **All cryptographic algorithms and GCM lengths must be supplied by your application** — the native layer does not apply defaults.
+Derive a shared encryption key from the client and server public keys.
 
-Use **`Crypto.establishSharedKey()`** so the derived key stays in native memory. Pass the same `cryptoOptions` to `encryptBySharedKey` / `decryptBySharedKey`.
+> **No package defaults.** See [Crypto profile policy](#-crypto-profile-policy). Pass `cryptoOptions` on every call; omitting it throws before native code runs.
+
+Use **`Crypto.establishSharedKey()`** so the derived key stays in native memory. After key exchange, signed `fetch` requests can use **`keyId` + `requestId` only** — the derived HMAC key never leaves native code.
 
 ```typescript
-import {
-  Crypto,
-  getPublicKey,
-  encryptBySharedKey,
-  decryptBySharedKey,
-  type CryptoOptions,
-} from 'react-native-security-suite';
+import { Crypto, fetch, type CryptoOptions } from 'react-native-security-suite';
 
-/**
- * Pick one value per field. Unions match exported package types.
- * Use JCA names (e.g. 'HmacSHA256', 'AES/GCM/NoPadding') for native crypto.
- */
-const cryptoOptions: CryptoOptions = {
-  keyAgreementAlgorithm: 'X25519', // 'X25519' | 'ECDH'
-  keyType: 'EC', // 'OKP' | 'EC'
-  encryptionKeyAlgorithm: 'AES-256', // 'AES-256' | 'AES'
-  hmacAlgorithm: 'HmacSHA256', // 'HmacSHA256' | 'HmacSHA384' | 'HmacSHA512' | 'HMAC-SHA-256' | 'HMAC-SHA-384' | 'HMAC-SHA-512'
-  cipher: 'AES-GCM', // 'AES-GCM' | 'AES/GCM/NoPadding'
-  tagLength: 256, // GCM auth tag size in bits
-  ivLength: 12, // GCM IV size in bytes
-};
+// Import from your app config — do not expect defaults from this package
+import { cryptoOptions } from './cryptoConfig';
 
-const handleKeyExchange = async () => {
-  const clientPublicKey = await getPublicKey();
-  const serverPublicKey = 'SERVER_PUBLIC_KEY_FROM_API';
+const handleSecureLogin = async (password: string, serverPublicKey: string, keyId: string) => {
+  const clientPublicKey = await Crypto.getPublicKey(cryptoOptions);
+  // ... send clientPublicKey to your key-exchange API ...
 
-  // Keeps the shared key in native memory (recommended)
   await Crypto.establishSharedKey(serverPublicKey, cryptoOptions);
+  const encryptedPassword = await Crypto.encrypt(password, cryptoOptions);
 
-  const encryptedMessage = await encryptBySharedKey('Secret message', cryptoOptions);
-  const decryptedMessage = await decryptBySharedKey(encryptedMessage, cryptoOptions);
+  await fetch('https://api.example.com/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'user', password: encryptedPassword }),
+    keyId,
+    requestId: 'unique-request-id',
+    certificates: ['sha256/...'],
+    validDomains: ['api.example.com'],
+  });
 };
 ```
 
@@ -301,6 +321,7 @@ const handleKeyExchange = async () => {
 
 ```javascript
 import { getSharedKey } from 'react-native-security-suite';
+import { cryptoOptions } from './cryptoConfig';
 
 const sharedKeyBase64 = await getSharedKey(serverPublicKey, cryptoOptions);
 ```
@@ -319,20 +340,36 @@ const sharedKeyBase64 = await getSharedKey(serverPublicKey, cryptoOptions);
 
 \*Provide via the preferred name or its deprecated alias (see [API Reference](#cryptooptions)).
 
-Use **JCA-style names** on both Android and iOS (e.g. `HmacSHA256`, not `HMAC-SHA-256`). Omitting any required option throws before native code runs.
+Use **JCA-style names** on both Android and iOS (e.g. `HmacSHA256`, not `HMAC-SHA-256`).
 
-**Typical production profile (P-256 ECDH + AES-256-GCM):**
+**Example app config (`cryptoConfig.ts`):**
+
+```typescript
+import type { CryptoOptions } from 'react-native-security-suite';
+
+export const cryptoOptions: CryptoOptions = {
+  keyAgreementAlgorithm: 'X25519',
+  keyType: 'OKP',
+  encryptionKeyAlgorithm: 'AES',
+  hmacAlgorithm: 'HmacSHA256',
+  cipher: 'AES/GCM/NoPadding',
+  tagLength: 128,
+  ivLength: 12,
+};
+```
+
+**Alternate profile (ECDH / P-256):**
 
 ```typescript
 import type { CryptoOptions } from 'react-native-security-suite';
 
 const cryptoOptions: CryptoOptions = {
-  keyAgreementAlgorithm: 'ECDH',
-  keyType: 'EC',
-  encryptionKeyAlgorithm: 'AES',
+  keyAgreementAlgorithm: 'HmacSHA256',
+  keyType: 'OKP',
+  encryptionKeyAlgorithm: 'AES-256',
   hmacAlgorithm: 'HmacSHA256',
-  cipher: 'AES/GCM/NoPadding',
-  tagLength: 128,
+  cipher: 'AES-GCM',
+  tagLength: 256,
   ivLength: 12,
 };
 ```
@@ -433,7 +470,26 @@ jws: {
 }
 ```
 
-**Migration from legacy options:** `options.keyId`, `options.requestId`, and top-level `options.secret` are deprecated. Use `options.jws` with `secret`, `headers.kid`, and `headers.request_id` instead. Legacy signing always used detached HS256 and the `X-JWS-Signature` header.
+**Legacy fetch signing (after `establishSharedKey`):** pass `keyId` and `requestId` at the top level of `fetch` options. Native code signs the raw request body with the derived HMAC key — no `secret` in JavaScript:
+
+```javascript
+import { Crypto, fetch } from 'react-native-security-suite';
+import { cryptoOptions } from './cryptoConfig';
+
+await Crypto.establishSharedKey(serverPublicKey, cryptoOptions);
+await fetch(url, {
+  method: 'POST',
+  body: JSON.stringify({ password: encrypted }),
+  keyId: sessionKeyId,
+  requestId: uuid(),
+  certificates: [...],
+  validDomains: [...],
+});
+```
+
+**Modern fetch signing:** pass an explicit secret via `options.jws.secret` (see examples above).
+
+Legacy signing uses detached HS256, `b64: false`, and the `X-JWS-Signature` header.
 
 ### 9. SSL Certificate Pinning
 
@@ -514,16 +570,18 @@ const monitoredRequest = async () => {
 
 ### Key Exchange
 
-- `Crypto.getPublicKey()` — Client public key (base64-encoded SPKI / DER)
-- `Crypto.establishSharedKey(serverPublicKey, options)` — Derive shared key in native memory; **`options` required**
-- `getPublicKey()` — Legacy alias for `Crypto.getPublicKey()`
-- `getSharedKey(serverPublicKey, options)` — **Deprecated**; returns derived key to JS; **`options` required**
-- `encryptBySharedKey(text, options)` — Encrypt with derived key; **`options` required**
-- `decryptBySharedKey(encryptedText, options)` — Decrypt with derived key; **`options` required**
+All methods below require `options: CryptoOptions` from your application. There is no built-in default profile.
+
+- `Crypto.getPublicKey(options)` — Client public key (base64-encoded SPKI / DER for EC, raw 32-byte for X25519)
+- `Crypto.establishSharedKey(serverPublicKey, options)` — Derive shared key in native memory (recommended)
+- `Crypto.encrypt(input, options)` / `Crypto.decrypt(input, options)` — AES-GCM with derived key
+- `getPublicKey(options)` — Legacy alias for `Crypto.getPublicKey()`
+- `getSharedKey(serverPublicKey, options)` — **Deprecated**; returns derived key to JS
+- `encryptBySharedKey(text, options)` / `decryptBySharedKey(encryptedText, options)` — Legacy aliases
 
 #### `CryptoOptions`
 
-All fields below are **required** on every key-exchange and encrypt/decrypt call. There are no library defaults — define a shared `cryptoOptions` object in your app and reuse it.
+All fields are **required**. Define the object in your app — this package does not export algorithm defaults. Reuse the same `cryptoOptions` for `getPublicKey`, `establishSharedKey`, `encrypt`, and `decrypt`.
 
 | Option | Allowed values |
 |--------|----------------|
@@ -575,14 +633,15 @@ Exported types: `JwsAlgorithm`, `JwsPayload`, `JwsHeaders`, `JwsHeaderValue`, `G
 
 ## 🛡️ Security Best Practices
 
-1. **Always validate certificates** — Use SSL pinning for production APIs
-2. **Detect compromised devices** — Check for root/jailbreak before sensitive operations
-3. **Store secrets in SecureStorage** — Use hardware-backed storage for tokens and credentials
-4. **Protect sensitive UI** — Wrap sensitive content in `SecureView`
-5. **Sign requests with JWS** — Include `timestamp`, `nonce`, and `request_id` in `jws.headers` for replay protection; never embed long-lived secrets in the app binary
-6. **Use detached JWS for body signing** — When the request body is the signed payload, set `jws.detached: true` so the body is not duplicated inside the token
-7. **Monitor network traffic** — Use built-in logging for debugging only; disable in production
-8. **Rotate session secrets** — Treat `jws.secret` as a short-lived session or request-scoped value from your backend
+1. **Define `cryptoOptions` in your app** — Do not rely on library defaults; keep the profile in app code or server-delivered config that matches your backend
+2. **Always validate certificates** — Use SSL pinning for production APIs
+3. **Detect compromised devices** — Check for root/jailbreak before sensitive operations
+4. **Store secrets in SecureStorage** — Use hardware-backed storage for tokens and credentials
+5. **Protect sensitive UI** — Wrap sensitive content in `SecureView`
+6. **Sign requests with JWS** — After `establishSharedKey`, use `keyId` + `requestId` on `fetch` so the HMAC key stays native; or pass short-lived `jws.secret` from your backend
+7. **Use detached JWS for body signing** — When the request body is the signed payload, set `jws.detached: true` so the body is not duplicated inside the token
+8. **Monitor network traffic** — Use built-in logging for debugging only; disable in production
+9. **Rotate session secrets** — Treat `jws.secret` as a short-lived session or request-scoped value from your backend
 
 ## 🐛 Troubleshooting
 

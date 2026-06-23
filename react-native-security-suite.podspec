@@ -16,6 +16,7 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/mohamadnavabi/react-native-security-suite.git", :tag => "#{s.version}" }
 
   s.source_files = "ios/**/*.{h,m,mm,swift}"
+  s.exclude_files = "ios/**/*Tests.swift"
 
   s.dependency "React-Core"
   s.dependency "IOSSecuritySuite"

@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReadableType;
 import org.json.JSONObject;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import java.nio.charset.StandardCharsets;
@@ -43,22 +44,108 @@ public class JWSGenerator {
     return formatCompactJws(encodedProtectedHeader, encodedPayload, encodedSignature, detached);
   }
 
-  /** @deprecated Use {@link #generate} with explicit secret and headers. */
-  @Deprecated
-  public String jwsHeader(byte[] payload, String keyId, String requestId, String secret) {
+  /**
+   * Legacy detached JWS used by fetch when keyId/requestId are set.
+   * Signs {@code base64url(header) + "." + rawPayloadBytes} with the derived HMAC key bytes.
+   */
+  public String jwsHeader(byte[] payload, String keyId, String requestId, SecretKey secretKey) {
     try {
-      JSONObject legacyHeaders = new JSONObject();
-      legacyHeaders.put("kid", keyId);
-      legacyHeaders.put("request_id", requestId);
+      CryptoUtils.validateJwsHeaderValue(keyId);
+      CryptoUtils.validateJwsHeaderValue(requestId);
 
-      String payloadString = payload != null
-          ? new String(payload, StandardCharsets.UTF_8)
-          : "";
+      JSONObject header = new JSONObject();
+      header.put("alg", "HS256");
+      header.put("kid", keyId);
+      header.put("b64", false);
+      header.put("crit", new org.json.JSONArray().put("b64"));
+      header.put("request_id", requestId);
 
-      return generate(payloadString, secret, "HS256", toReadableMap(legacyHeaders), true);
+      byte[] joseHeaderBytes = header.toString().getBytes(StandardCharsets.UTF_8);
+      String base64JoseHeader = CryptoUtils.base64UrlEncode(joseHeaderBytes);
+      byte[] value = prepareAggregatedContentBytes(
+          base64JoseHeader.getBytes(StandardCharsets.US_ASCII),
+          payload != null ? payload : new byte[0]
+      );
+
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(secretKey);
+      return base64JoseHeader + ".." + CryptoUtils.base64UrlEncode(mac.doFinal(value));
     } catch (Exception e) {
       throw new IllegalStateException("JWS generation failed: " + e.getMessage(), e);
     }
+  }
+
+  /** Legacy JWS generation using the derived HMAC key and raw request payload bytes. */
+  public String generate(
+      byte[] payload,
+      SecretKey secretKey,
+      String algorithm,
+      ReadableMap headers
+  ) throws Exception {
+    if (secretKey == null) {
+      throw new IllegalArgumentException("Secret key is required for JWS signing");
+    }
+
+    String validatedAlgorithm = CryptoUtils.validateJwsAlgorithm(algorithm);
+    JSONObject header = buildLegacyDetachedHeader(validatedAlgorithm, headers);
+
+    byte[] joseHeaderBytes = header.toString().getBytes(StandardCharsets.UTF_8);
+    String base64JoseHeader = CryptoUtils.base64UrlEncode(joseHeaderBytes);
+    byte[] value = prepareAggregatedContentBytes(
+        base64JoseHeader.getBytes(StandardCharsets.US_ASCII),
+        payload != null ? payload : new byte[0]
+    );
+
+    Mac mac = Mac.getInstance(CryptoUtils.hmacAlgorithmForJws(validatedAlgorithm));
+    mac.init(secretKey);
+    return base64JoseHeader + ".." + CryptoUtils.base64UrlEncode(mac.doFinal(value));
+  }
+
+  private JSONObject buildLegacyDetachedHeader(String algorithm, ReadableMap headers) throws Exception {
+    JSONObject header = new JSONObject();
+    header.put("alg", algorithm);
+    header.put("b64", false);
+    header.put("crit", new org.json.JSONArray().put("b64"));
+
+    if (headers != null) {
+      TreeMap<String, String> sorted = new TreeMap<>();
+      ReadableMapKeySetIterator iterator = headers.keySetIterator();
+      while (iterator.hasNextKey()) {
+        String key = iterator.nextKey();
+        if (headers.getType(key) != ReadableType.String) {
+          throw new IllegalArgumentException("JWS header values must be strings: " + key);
+        }
+        CryptoUtils.validateJwsHeaderKey(key);
+        String value = headers.getString(key);
+        CryptoUtils.validateJwsHeaderValue(value);
+        sorted.put(key, value);
+      }
+
+      for (java.util.Map.Entry<String, String> entry : sorted.entrySet()) {
+        String key = entry.getKey();
+        if ("alg".equals(key) || "b64".equals(key) || "crit".equals(key)) {
+          continue;
+        }
+        header.put(key, entry.getValue());
+      }
+    }
+
+    if (!header.has("kid")) {
+      throw new IllegalArgumentException("JWS header 'kid' is required");
+    }
+    if (!header.has("request_id")) {
+      throw new IllegalArgumentException("JWS header 'request_id' is required");
+    }
+
+    return header;
+  }
+
+  private static byte[] prepareAggregatedContentBytes(byte[] headerBytes, byte[] payloadBytes) {
+    byte[] contentBytes = new byte[headerBytes.length + 1 + payloadBytes.length];
+    System.arraycopy(headerBytes, 0, contentBytes, 0, headerBytes.length);
+    contentBytes[headerBytes.length] = '.';
+    System.arraycopy(payloadBytes, 0, contentBytes, headerBytes.length + 1, payloadBytes.length);
+    return contentBytes;
   }
 
   public boolean verify(

@@ -69,7 +69,7 @@ export function validateJwsAlgorithm(
   algorithm: string | undefined
 ): JwsAlgorithm {
   if (!algorithm) {
-    return 'HS256';
+    throw new Error('JWS algorithm is required');
   }
   if (!SUPPORTED_ALGORITHMS.includes(algorithm as JwsAlgorithm)) {
     throw new Error(`Unsupported JWS algorithm: ${algorithm}`);
@@ -160,7 +160,7 @@ export function resolveJwsAlgorithm(
     return validateJwsAlgorithm(headerAlg);
   }
 
-  return 'HS256';
+  throw new Error('JWS algorithm is required');
 }
 
 export interface NativeGenerateJWSOptions {

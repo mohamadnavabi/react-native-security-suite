@@ -92,8 +92,10 @@ describe('isEmptyJwsPayload', () => {
 });
 
 describe('resolveJwsAlgorithm', () => {
-  it('defaults to HS256 when algorithm is omitted', () => {
-    expect(resolveJwsAlgorithm(undefined, { kid: 'test-key' })).toBe('HS256');
+  it('throws when algorithm is omitted', () => {
+    expect(() => resolveJwsAlgorithm(undefined, { kid: 'test-key' })).toThrow(
+      'JWS algorithm is required'
+    );
   });
 
   it('uses headers.alg when options.algorithm is omitted', () => {

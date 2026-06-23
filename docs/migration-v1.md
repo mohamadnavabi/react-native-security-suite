@@ -26,7 +26,7 @@ import {
 |------|-----------------|
 | `deviceHasSecurityRisk()` | `DeviceSecurity.isCompromised()` or `report.device.isRooted \|\| report.device.isJailbroken` |
 | `fetch()` | `SecureNetwork.fetch()` (alias preserved) |
-| `getPublicKey()` | `Crypto.getPublicKey()` |
+| `getPublicKey(options?)` | `Crypto.getPublicKey(options?)` |
 | `getSharedKey()` | `Crypto.establishSharedKey()` — **does not return key by default** |
 | `encryptBySharedKey()` | `Crypto.encrypt()` |
 | `decryptBySharedKey()` | `Crypto.decrypt()` |

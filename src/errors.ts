@@ -11,6 +11,7 @@ export enum SecurityErrorCode {
   SSL_PINNING_FAILED = 'SSL_PINNING_FAILED',
   SECURE_STORAGE_UNAVAILABLE = 'SECURE_STORAGE_UNAVAILABLE',
   CRYPTO_KEY_NOT_FOUND = 'CRYPTO_KEY_NOT_FOUND',
+  CONFIGURATION_ERROR = 'CONFIGURATION_ERROR',
 }
 
 const NATIVE_CODE_MAP: Record<string, SecurityErrorCode> = {
@@ -30,6 +31,8 @@ const NATIVE_CODE_MAP: Record<string, SecurityErrorCode> = {
   ENCRYPT_ERROR: SecurityErrorCode.CRYPTO_KEY_NOT_FOUND,
   DECRYPT_ERROR: SecurityErrorCode.CRYPTO_KEY_NOT_FOUND,
   CRYPTO_KEY_NOT_FOUND: SecurityErrorCode.CRYPTO_KEY_NOT_FOUND,
+  CONFIGURATION_ERROR: SecurityErrorCode.CONFIGURATION_ERROR,
+  GET_PUBLIC_KEY_ERROR: SecurityErrorCode.CONFIGURATION_ERROR,
 };
 
 export class SecurityError extends Error {

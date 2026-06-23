@@ -16,11 +16,13 @@ import androidx.annotation.NonNull;
 import android.util.Base64;
 import android.util.Log;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.ECGenParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.Cipher;
@@ -31,6 +33,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import com.scottyab.rootbeer.RootBeer;
 
+import com.securitysuite.crypto.CryptoManager;
 import com.securitysuite.security.AppIntegrityChecker;
 import com.securitysuite.security.EmulatorDetector;
 import com.securitysuite.security.RuntimeDetector;
@@ -43,48 +46,173 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   private SecretKey encryptionKey;
   private SecretKey hmacKey;
   private CryptoConfig cryptoConfig;
+  private KeyPair legacyKeyPair;
+  private boolean configuredLegacyV09Crypto;
+  private boolean suiteConfigured;
 
   public SecuritySuiteModule(ReactApplicationContext reactContext) {
     super(reactContext);
     context = reactContext;
   }
 
+  private boolean usesLegacyV09Crypto() {
+    return configuredLegacyV09Crypto;
+  }
+
   @ReactMethod
-  public void getPublicKey(Promise promise) {
+  public void configure(ReadableMap config, Promise promise) {
     try {
-      promise.resolve(EcdhKeyStore.getPublicKeyBase64(context));
+      if (config == null) {
+        promise.reject("CONFIGURATION_ERROR", "Security suite configuration is required");
+        return;
+      }
+
+      if (config.hasKey("legacyV09Crypto") && !config.isNull("legacyV09Crypto")) {
+        configuredLegacyV09Crypto = config.getBoolean("legacyV09Crypto");
+      }
+
+      if (!configuredLegacyV09Crypto) {
+        String salt = config.hasKey("hkdfSalt") ? config.getString("hkdfSalt") : null;
+        String infoEncryption = config.hasKey("hkdfInfoEncryption")
+            ? config.getString("hkdfInfoEncryption")
+            : null;
+        String infoHmac = config.hasKey("hkdfInfoHmac") ? config.getString("hkdfInfoHmac") : null;
+
+        if (salt == null || salt.trim().isEmpty()
+            || infoEncryption == null || infoEncryption.trim().isEmpty()
+            || infoHmac == null || infoHmac.trim().isEmpty()) {
+          promise.reject(
+              "CONFIGURATION_ERROR",
+              "hkdf.salt, hkdf.encryptionInfo, and hkdf.hmacInfo are required"
+          );
+          return;
+        }
+
+        CryptoUtils.setHkdfConfig(
+            salt.getBytes(StandardCharsets.UTF_8),
+            infoEncryption.getBytes(StandardCharsets.UTF_8),
+            infoHmac.getBytes(StandardCharsets.UTF_8)
+        );
+      }
+
+      suiteConfigured = true;
+      promise.resolve(null);
+    } catch (Exception e) {
+      promise.reject("CONFIGURATION_ERROR", e.getMessage(), e);
+    }
+  }
+
+  private void ensureConfigured() {
+    if (!suiteConfigured) {
+      throw new IllegalStateException(
+          "Call SecuritySuite.initialize() before using security APIs."
+      );
+    }
+  }
+
+  private KeyPair createLegacyKeyPair(CryptoConfig config) throws Exception {
+    KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(config.keyFactoryAlgorithm);
+    keyPairGenerator.initialize(new ECGenParameterSpec("secp256r1"));
+    return keyPairGenerator.generateKeyPair();
+  }
+
+  private byte[] legacySharedSecret(
+      PrivateKey privateKey,
+      PublicKey serverPublicKey,
+      String keyAgreementAlgorithm
+  ) throws Exception {
+    KeyAgreement keyAgree = KeyAgreement.getInstance(keyAgreementAlgorithm);
+    keyAgree.init(privateKey);
+    keyAgree.doPhase(serverPublicKey, true);
+    return keyAgree.generateSecret();
+  }
+
+  private byte[] legacyComputeAndStoreSharedKeys(String serverPK) throws Exception {
+    if (serverPK == null || serverPK.trim().isEmpty()) {
+      throw new IllegalArgumentException("Server public key is required");
+    }
+    if (legacyKeyPair == null) {
+      throw new IllegalStateException("Call getPublicKey before getSharedKey");
+    }
+    PublicKey serverPublicKey = KeyFactory.getInstance(cryptoConfig.keyFactoryAlgorithm).generatePublic(
+        new X509EncodedKeySpec(Base64.decode(serverPK.trim(), Base64.NO_WRAP))
+    );
+    byte[] sharedSecret = legacySharedSecret(legacyKeyPair.getPrivate(), serverPublicKey, cryptoConfig.keyAgreementAlgorithm);
+    encryptionKey = new SecretKeySpec(sharedSecret, cryptoConfig.encryptionKeyAlgorithm);
+    hmacKey = new SecretKeySpec(sharedSecret, cryptoConfig.hmacKeyAlgorithm);
+    return sharedSecret;
+  }
+
+  private void legacyEstablishSharedKey(String serverPK, Promise promise) {
+    try {
+      legacyComputeAndStoreSharedKeys(serverPK);
+      promise.resolve(null);
+    } catch (Exception e) {
+      Log.e("legacyEstablishSharedKey Error: ", String.valueOf(e));
+      promise.reject("GET_SHARED_KEY_ERROR", e.getMessage(), e);
+    }
+  }
+
+  private void legacyGetSharedKey(String serverPK, Promise promise) {
+    try {
+      byte[] sharedSecret = legacyComputeAndStoreSharedKeys(serverPK);
+      promise.resolve(Base64.encodeToString(sharedSecret, Base64.NO_WRAP));
+    } catch (Exception e) {
+      Log.e("legacyGetSharedKey Error: ", String.valueOf(e));
+      promise.reject("GET_SHARED_KEY_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void getPublicKey(ReadableMap options, Promise promise) {
+    try {
+      ensureConfigured();
+      if (usesLegacyV09Crypto()) {
+        cryptoConfig = CryptoConfig.fromReadableMap(options);
+        legacyKeyPair = createLegacyKeyPair(cryptoConfig);
+        promise.resolve(
+            Base64.encodeToString(legacyKeyPair.getPublic().getEncoded(), Base64.NO_WRAP)
+        );
+        return;
+      }
+
+      KeyAgreementProfile profile = KeyAgreementProfile.fromReadableMap(options);
+      promise.resolve(KeyAgreementKeyStore.getPublicKeyBase64(context, profile));
     } catch (Exception e) {
       promise.reject("GET_PUBLIC_KEY_ERROR", e.getMessage(), e);
     }
   }
 
+  /** Performs ECDH + HKDF and stores the derived keys. Returns the derived encryption key bytes. */
+  private byte[] computeAndStoreSharedKeys(String serverPK, CryptoConfig config) throws Exception {
+    if (serverPK == null || serverPK.trim().isEmpty()) {
+      throw new IllegalArgumentException("Server public key is required");
+    }
+    KeyAgreementProfile profile = KeyAgreementProfile.fromCryptoConfig(config);
+    byte[] serverKeyBytes = Base64.decode(serverPK.trim(), Base64.NO_WRAP);
+    PublicKey serverPublicKey = KeyAgreementKeyStore.decodeServerPublicKey(serverKeyBytes, profile);
+    PrivateKey privateKey = KeyAgreementKeyStore.getPrivateKey(context, profile);
+    KeyAgreement keyAgree = KeyAgreement.getInstance(profile.keyAgreementAlgorithm);
+    keyAgree.init(privateKey);
+    keyAgree.doPhase(serverPublicKey, true);
+    byte[] sharedSecret = keyAgree.generateSecret();
+    byte[] encKeyBytes = CryptoUtils.deriveEncryptionKey(sharedSecret, config.hmacKeyAlgorithm);
+    byte[] macKeyBytes = CryptoUtils.deriveHmacKey(sharedSecret, config.hmacKeyAlgorithm);
+    encryptionKey = new SecretKeySpec(encKeyBytes, config.encryptionKeyAlgorithm);
+    hmacKey = new SecretKeySpec(macKeyBytes, config.hmacKeyAlgorithm);
+    return encKeyBytes;
+  }
+
   @ReactMethod
   public void establishSharedKey(String serverPK, ReadableMap options, Promise promise) {
     try {
-      if (serverPK == null || serverPK.trim().isEmpty()) {
-        promise.reject("GET_SHARED_KEY_ERROR", "Server public key is required");
+      ensureConfigured();
+      cryptoConfig = CryptoConfig.fromReadableMap(options);
+      if (usesLegacyV09Crypto()) {
+        legacyEstablishSharedKey(serverPK, promise);
         return;
       }
-
-      cryptoConfig = CryptoConfig.fromReadableMap(options);
-
-      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(
-          Base64.decode(serverPK.trim(), Base64.NO_WRAP)
-      );
-      KeyFactory keyFactory = KeyFactory.getInstance(cryptoConfig.keyFactoryAlgorithm);
-      PublicKey serverPublicKey = keyFactory.generatePublic(keySpec);
-      PrivateKey privateKey = EcdhKeyStore.getPrivateKey(context);
-
-      KeyAgreement keyAgree = KeyAgreement.getInstance(cryptoConfig.keyAgreementAlgorithm);
-      keyAgree.init(privateKey);
-      keyAgree.doPhase(serverPublicKey, true);
-      byte[] sharedSecret = keyAgree.generateSecret();
-
-      byte[] encKeyBytes = CryptoUtils.deriveEncryptionKey(sharedSecret, cryptoConfig.hmacKeyAlgorithm);
-      byte[] macKeyBytes = CryptoUtils.deriveHmacKey(sharedSecret, cryptoConfig.hmacKeyAlgorithm);
-      encryptionKey = new SecretKeySpec(encKeyBytes, cryptoConfig.encryptionKeyAlgorithm);
-      hmacKey = new SecretKeySpec(macKeyBytes, cryptoConfig.hmacKeyAlgorithm);
-
+      computeAndStoreSharedKeys(serverPK, cryptoConfig);
       promise.resolve(null);
     } catch (Exception e) {
       Log.e("establishSharedKey Error: ", String.valueOf(e));
@@ -95,30 +223,13 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void getSharedKey(String serverPK, ReadableMap options, Promise promise) {
     try {
-      if (serverPK == null || serverPK.trim().isEmpty()) {
-        promise.reject("GET_SHARED_KEY_ERROR", "Server public key is required");
+      ensureConfigured();
+      cryptoConfig = CryptoConfig.fromReadableMap(options);
+      if (usesLegacyV09Crypto()) {
+        legacyGetSharedKey(serverPK, promise);
         return;
       }
-
-      cryptoConfig = CryptoConfig.fromReadableMap(options);
-
-      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(
-          Base64.decode(serverPK.trim(), Base64.NO_WRAP)
-      );
-      KeyFactory keyFactory = KeyFactory.getInstance(cryptoConfig.keyFactoryAlgorithm);
-      PublicKey serverPublicKey = keyFactory.generatePublic(keySpec);
-      PrivateKey privateKey = EcdhKeyStore.getPrivateKey(context);
-
-      KeyAgreement keyAgree = KeyAgreement.getInstance(cryptoConfig.keyAgreementAlgorithm);
-      keyAgree.init(privateKey);
-      keyAgree.doPhase(serverPublicKey, true);
-      byte[] sharedSecret = keyAgree.generateSecret();
-
-      byte[] encKeyBytes = CryptoUtils.deriveEncryptionKey(sharedSecret, cryptoConfig.hmacKeyAlgorithm);
-      byte[] macKeyBytes = CryptoUtils.deriveHmacKey(sharedSecret, cryptoConfig.hmacKeyAlgorithm);
-      encryptionKey = new SecretKeySpec(encKeyBytes, cryptoConfig.encryptionKeyAlgorithm);
-      hmacKey = new SecretKeySpec(macKeyBytes, cryptoConfig.hmacKeyAlgorithm);
-
+      byte[] encKeyBytes = computeAndStoreSharedKeys(serverPK, cryptoConfig);
       promise.resolve(Base64.encodeToString(encKeyBytes, Base64.NO_WRAP));
     } catch (Exception e) {
       Log.e("getSharedKey Error: ", String.valueOf(e));
@@ -129,15 +240,20 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void encrypt(String input, ReadableMap options, Promise promise) {
     try {
+      ensureConfigured();
       if (encryptionKey == null) {
-        promise.reject("ENCRYPT_ERROR", "Encryption key not established. Call getSharedKey first.");
+        promise.reject(
+            "ENCRYPT_ERROR",
+            "Encryption key not established. Call establishSharedKey or getSharedKey first."
+        );
         return;
       }
       CryptoConfig config = resolveCryptoConfig(options);
       byte[] inputByte = input.getBytes(StandardCharsets.UTF_8);
+      byte[] iv = CryptoUtils.randomBytes(config.gcmIvLength);
+      GCMParameterSpec params = new GCMParameterSpec(config.gcmTagLength, iv);
       Cipher cipher = Cipher.getInstance(config.cipherTransformation);
-      cipher.init(Cipher.ENCRYPT_MODE, encryptionKey);
-      byte[] iv = cipher.getIV();
+      cipher.init(Cipher.ENCRYPT_MODE, encryptionKey, params);
       byte[] cipherText = cipher.doFinal(inputByte);
       byte[] output = new byte[iv.length + cipherText.length];
       System.arraycopy(iv, 0, output, 0, iv.length);
@@ -151,8 +267,12 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void decrypt(String input, ReadableMap options, Promise promise) {
     try {
+      ensureConfigured();
       if (encryptionKey == null) {
-        promise.reject("DECRYPT_ERROR", "Encryption key not established. Call getSharedKey first.");
+        promise.reject(
+            "DECRYPT_ERROR",
+            "Encryption key not established. Call establishSharedKey or getSharedKey first."
+        );
         return;
       }
       CryptoConfig config = resolveCryptoConfig(options);
@@ -175,7 +295,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
           config.gcmIvLength,
           inputBytes.length - config.gcmIvLength
       );
-      promise.resolve(new String(plaintext, Charset.forName("UTF-8")));
+      promise.resolve(new String(plaintext, StandardCharsets.UTF_8));
     } catch (Exception e) {
       promise.reject("DECRYPT_ERROR", e.getMessage(), e);
     }
@@ -204,6 +324,10 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
       }
 
       String algorithm = options.hasKey("algorithm") ? options.getString("algorithm") : null;
+      if (algorithm == null || algorithm.trim().isEmpty()) {
+        promise.reject("JWS_ERROR", "JWS algorithm is required");
+        return;
+      }
       ReadableMap headers = options.hasKey("headers") ? options.getMap("headers") : null;
       boolean detached = options.hasKey("detached") && options.getBoolean("detached");
 
@@ -235,43 +359,49 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   /** @deprecated Use obfuscate() or SecureStorage instead. */
   @ReactMethod
-  public void storageEncrypt(String input, String secretKey, Boolean hardEncryption, Callback callback) {
+  public void storageEncrypt(String input, String secretKey, Boolean hardEncryption, Promise promise) {
     try {
       if (secretKey == null || secretKey.trim().isEmpty()) {
-        callback.invoke(null, "secretKey is required. Device identifiers are not accepted as encryption keys.");
+        promise.reject(
+            "ENCRYPT_ERROR",
+            "secretKey is required. Device identifiers are not accepted as encryption keys."
+        );
         return;
       }
       if (Boolean.TRUE.equals(hardEncryption)) {
-        callback.invoke(
-            null,
+        promise.reject(
+            "ENCRYPT_ERROR",
             "hardEncryption is deprecated. Use SecureStorage for encrypted-at-rest data."
         );
         return;
       }
-      callback.invoke(Obfuscation.obfuscate(input, secretKey), null);
+      promise.resolve(Obfuscation.obfuscate(input, secretKey));
     } catch (Exception e) {
-      callback.invoke(null, e.getMessage());
+      promise.reject("ENCRYPT_ERROR", e.getMessage(), e);
     }
   }
 
   /** @deprecated Use deobfuscate() or SecureStorage APIs instead. */
   @ReactMethod
-  public void storageDecrypt(String input, String secretKey, Boolean hardEncryption, Callback callback) {
+  public void storageDecrypt(String input, String secretKey, Boolean hardEncryption, Promise promise) {
     try {
       if (secretKey == null || secretKey.trim().isEmpty()) {
-        callback.invoke(null, "secretKey is required. Device identifiers are not accepted as encryption keys.");
+        promise.reject(
+            "DECRYPT_ERROR",
+            "secretKey is required. Device identifiers are not accepted as encryption keys."
+        );
         return;
       }
       if (Boolean.TRUE.equals(hardEncryption)) {
-        callback.invoke(
-            null,
+        promise.reject(
+            "DECRYPT_ERROR",
             "hardEncryption is deprecated. Use SecureStorage for encrypted-at-rest data."
         );
         return;
       }
-      callback.invoke(Obfuscation.deobfuscate(input, secretKey), null);
+      promise.resolve(Obfuscation.deobfuscate(input, secretKey));
     } catch (Exception e) {
-      callback.invoke(null, e.getMessage());
+      promise.reject("DECRYPT_ERROR", e.getMessage(), e);
     }
   }
 
@@ -370,7 +500,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void fetch(String url, final ReadableMap options, Callback callback) {
     Sslpinning sslpinning = new Sslpinning(context);
-    sslpinning.fetch(url, options, callback);
+    sslpinning.fetch(url, options, hmacKey, callback);
   }
 
   @ReactMethod
@@ -419,6 +549,164 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   public void deviceHasSecurityRisk(Promise promise) {
     RootBeer rootBeer = new RootBeer(context);
     promise.resolve(rootBeer.isRooted());
+  }
+
+  // ─── CryptoManager bridge ───────────────────────────────────────────────
+
+  @ReactMethod
+  public void cryptoHash(String input, String algorithm, Promise promise) {
+    try {
+      promise.resolve(CryptoManager.hash(input, algorithm));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_HASH_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoDeriveKeys(ReadableMap params, Promise promise) {
+    try {
+      String sharedSecret = requireParam(params, "sharedSecret");
+      String salt = requireParam(params, "salt");
+      String encryptionInfo = requireParam(params, "encryptionInfo");
+      String macInfo = requireParam(params, "macInfo");
+      String hmacAlgorithm = requireParam(params, "hmacAlgorithm");
+      promise.resolve(CryptoManager.deriveKeys(sharedSecret, salt, encryptionInfo, macInfo, hmacAlgorithm));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KDF_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoEncryptAesGcm(String plaintext, String key, Promise promise) {
+    try {
+      promise.resolve(CryptoManager.encryptAesGcm(plaintext, key));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_ENCRYPT_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoDecryptAesGcm(String ciphertext, String key, Promise promise) {
+    try {
+      promise.resolve(CryptoManager.decryptAesGcm(ciphertext, key));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_DECRYPT_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoGetEcdhPublicKey(Promise promise) {
+    try {
+      promise.resolve(CryptoManager.getEcdhPublicKey(context));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoEcdhComputeAndDeriveKeys(ReadableMap params, Promise promise) {
+    try {
+      String serverPublicKey = requireParam(params, "serverPublicKey");
+      String salt = requireParam(params, "salt");
+      String encryptionInfo = requireParam(params, "encryptionInfo");
+      String macInfo = requireParam(params, "macInfo");
+      String hmacAlgorithm = requireParam(params, "hmacAlgorithm");
+      promise.resolve(CryptoManager.ecdhComputeAndDeriveKeys(
+          context, serverPublicKey, salt, encryptionInfo, macInfo, hmacAlgorithm
+      ));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoGetX25519PublicKey(Promise promise) {
+    try {
+      promise.resolve(CryptoManager.getX25519PublicKey(context));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoX25519ComputeAndDeriveKeys(ReadableMap params, Promise promise) {
+    try {
+      String serverPublicKey = requireParam(params, "serverPublicKey");
+      String salt = requireParam(params, "salt");
+      String encryptionInfo = requireParam(params, "encryptionInfo");
+      String macInfo = requireParam(params, "macInfo");
+      String hmacAlgorithm = requireParam(params, "hmacAlgorithm");
+      promise.resolve(CryptoManager.x25519ComputeAndDeriveKeys(
+          context, serverPublicKey, salt, encryptionInfo, macInfo, hmacAlgorithm
+      ));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoGenerateEd25519KeyPair(Promise promise) {
+    try {
+      promise.resolve(CryptoManager.generateEd25519KeyPair());
+    } catch (Exception e) {
+      promise.reject("CRYPTO_SIGN_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoSignEd25519(String message, String privateKey, Promise promise) {
+    try {
+      promise.resolve(CryptoManager.signEd25519(message, privateKey));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_SIGN_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoVerifyEd25519(String message, String signature, String publicKey, Promise promise) {
+    try {
+      promise.resolve(CryptoManager.verifyEd25519(message, signature, publicKey));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_VERIFY_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoGenerateEcdsaKeyPair(Promise promise) {
+    try {
+      promise.resolve(CryptoManager.generateEcdsaKeyPair());
+    } catch (Exception e) {
+      promise.reject("CRYPTO_SIGN_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoSignEcdsa(String message, String privateKey, Promise promise) {
+    try {
+      promise.resolve(CryptoManager.signEcdsa(message, privateKey));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_SIGN_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoVerifyEcdsa(String message, String signature, String publicKey, Promise promise) {
+    try {
+      promise.resolve(CryptoManager.verifyEcdsa(message, signature, publicKey));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_VERIFY_ERROR", e.getMessage(), e);
+    }
+  }
+
+  private static String requireParam(ReadableMap params, String key) {
+    if (!params.hasKey(key) || params.isNull(key)) {
+      throw new IllegalArgumentException("Missing required parameter: " + key);
+    }
+    String value = params.getString(key);
+    if (value == null || value.trim().isEmpty()) {
+      throw new IllegalArgumentException("Missing required parameter: " + key);
+    }
+    return value;
   }
 
   @Override

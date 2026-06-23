@@ -102,6 +102,28 @@ final class JWSGeneratorTests: XCTestCase {
         XCTAssertEqual(decoded?["alg"] as? String, "HS256")
     }
 
+    func testLegacyDetachedJwsUsesRawPayloadBytes() throws {
+        let payload = Data("{\"password\":\"secret\"}".utf8)
+        let hmacKey = Data("derived-hmac-key-material-32-bytes!!".utf8)
+        let jws = try JWSGenerator.generate(
+            payload: payload,
+            secret: hmacKey,
+            algorithm: "HS256",
+            headers: ["kid": "kid-1", "request_id": "req-1"]
+        )
+
+        XCTAssertTrue(jws.contains(".."))
+        let protectedHeader = String(jws.split(separator: "..", omittingEmptySubsequences: false)[0])
+        let decoded = try JSONSerialization.jsonObject(
+            with: Data(base64: base64URLToBase64(protectedHeader)),
+            options: []
+        ) as? [String: Any]
+
+        XCTAssertEqual(decoded?["b64"] as? Bool, false)
+        XCTAssertEqual(decoded?["kid"] as? String, "kid-1")
+        XCTAssertEqual(decoded?["request_id"] as? String, "req-1")
+    }
+
     func testDetachedOutputUsesDoubleDot() throws {
         let jws = try JWSGenerator.generate(
             payloadString: "payload",

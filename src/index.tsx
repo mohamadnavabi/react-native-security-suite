@@ -1,4 +1,10 @@
 import { NativeModules, Platform } from 'react-native';
+import {
+  ensureLegacyV09Initialized,
+  isSecuritySuiteInitialized,
+  requireSecuritySuiteConfig,
+  resolveCryptoOptions,
+} from './config';
 import { jsonParse } from './helpers';
 import {
   toNativeCryptoOptions,
@@ -39,8 +45,31 @@ export {
 export { DeviceSecurity } from './device';
 export { RuntimeSecurity } from './runtime';
 export { AppIntegrity } from './integrity';
-export { Crypto } from './crypto';
+export {
+  Crypto,
+  CryptoManager,
+  Hashing,
+  KDF,
+  KeyExchange,
+  Encryption,
+  Signatures,
+} from './crypto';
+export type {
+  HashAlgorithm,
+  HkdfHmacAlgorithm,
+  DerivedKeys,
+  KeyPair,
+  HkdfDeriveParams,
+  KeyExchangeComputeParams,
+} from './crypto';
 export { SecuritySuite } from './securitySuite';
+export type {
+  SecuritySuiteInitConfig,
+  SecuritySuiteBehaviorConfig,
+  HkdfConfig,
+  SslPinningDefaults,
+  JwsDefaults,
+} from './config';
 export {
   DEFAULT_PROTECTION_POLICY,
   enforceProtection,
@@ -148,8 +177,19 @@ const NativeSecuritySuiteModule = NativeModules.SecuritySuite
       }
     );
 
-export const getPublicKey = (): Promise<string> =>
-  NativeSecuritySuiteModule.getPublicKey();
+function withLegacyBootstrap<T>(
+  cryptoOverrides: CryptoOptions | undefined,
+  run: () => Promise<T>
+): Promise<T> {
+  return ensureLegacyV09Initialized(cryptoOverrides).then(run);
+}
+
+export const getPublicKey = (options?: CryptoOptions): Promise<string> =>
+  withLegacyBootstrap(options, () =>
+    NativeSecuritySuiteModule.getPublicKey(
+      toNativeCryptoOptions(resolveCryptoOptions(options))
+    )
+  );
 
 /**
  * @deprecated Prefer `Crypto.establishSharedKey()` which keeps the derived key in native memory.
@@ -158,9 +198,11 @@ export const getSharedKey = (
   serverPublicKey: string,
   options?: CryptoOptions
 ): Promise<string> =>
-  NativeSecuritySuiteModule.getSharedKey(
-    serverPublicKey,
-    toNativeCryptoOptions(options)
+  withLegacyBootstrap(options, () =>
+    NativeSecuritySuiteModule.getSharedKey(
+      serverPublicKey,
+      toNativeCryptoOptions(resolveCryptoOptions(options))
+    )
   );
 
 export const encryptBySharedKey = (
@@ -170,9 +212,11 @@ export const encryptBySharedKey = (
   if (!input || typeof input !== 'string') {
     return Promise.reject(new Error('Input must be a non-empty string'));
   }
-  return NativeSecuritySuiteModule.encrypt(
-    input,
-    toNativeCryptoOptions(options)
+  return withLegacyBootstrap(options, () =>
+    NativeSecuritySuiteModule.encrypt(
+      input,
+      toNativeCryptoOptions(resolveCryptoOptions(options))
+    )
   );
 };
 
@@ -183,15 +227,49 @@ export const decryptBySharedKey = (
   if (!input || typeof input !== 'string') {
     return Promise.reject(new Error('Input must be a non-empty string'));
   }
-  return NativeSecuritySuiteModule.decrypt(
-    input,
-    toNativeCryptoOptions(options)
+  return withLegacyBootstrap(options, () =>
+    NativeSecuritySuiteModule.decrypt(
+      input,
+      toNativeCryptoOptions(resolveCryptoOptions(options))
+    )
   );
 };
 
 export const generateJWS = (options: GenerateJWSOptions): Promise<string> => {
-  const nativeOptions = toNativeGenerateJWSOptions(options);
-  return NativeSecuritySuiteModule.generateJWS(nativeOptions);
+  const run = (): Promise<string> => {
+    const config = requireSecuritySuiteConfig();
+    const merged: GenerateJWSOptions = {
+      algorithm: options.algorithm ?? config.jws?.algorithm,
+      secret: options.secret,
+      headers: options.headers,
+      payload: options.payload,
+    };
+
+    if (!merged.algorithm) {
+      return Promise.reject(
+        new Error(
+          'JWS algorithm is required. Set jws.algorithm in SecuritySuite.initialize() or pass algorithm in options.'
+        )
+      );
+    }
+
+    const nativeOptions = toNativeGenerateJWSOptions(merged);
+    return NativeSecuritySuiteModule.generateJWS(nativeOptions);
+  };
+
+  if (isSecuritySuiteInitialized()) {
+    return run();
+  }
+
+  if (options.algorithm) {
+    return ensureLegacyV09Initialized().then(run);
+  }
+
+  return Promise.reject(
+    new Error(
+      'JWS algorithm is required. Set jws.algorithm in SecuritySuite.initialize() or pass algorithm in options.'
+    )
+  );
 };
 
 function normalizeFetchOptions(options: Options): Options {
@@ -243,31 +321,23 @@ export const encrypt = (
   input: string,
   hardEncryption = true,
   secretKey: string | null = null
-): Promise<string> =>
-  new Promise((resolve, reject) => {
-    if (!input) {
-      resolve(input);
-      return;
-    }
-    if (!secretKey) {
-      reject(
-        new Error(
-          'secretKey is required. Device identifiers are not accepted as encryption keys.'
-        )
-      );
-      return;
-    }
-    NativeSecuritySuiteModule.storageEncrypt(
-      input,
-      secretKey,
-      hardEncryption,
-      (result: string | null, error: string | null) => {
-        if (error !== null) reject(error);
-        else if (result !== null) resolve(result);
-        else reject(new Error('ENCRYPT_ERROR'));
-      }
+): Promise<string> => {
+  if (!input) {
+    return Promise.resolve(input);
+  }
+  if (!secretKey) {
+    return Promise.reject(
+      new Error(
+        'secretKey is required. Device identifiers are not accepted as encryption keys.'
+      )
     );
-  });
+  }
+  return NativeSecuritySuiteModule.storageEncrypt(
+    input,
+    secretKey,
+    hardEncryption
+  );
+};
 
 /**
  * @deprecated Use `deobfuscate()` with an explicit secret, or `SecureStorage` for at-rest data.
@@ -276,31 +346,23 @@ export const decrypt = (
   input: string,
   hardEncryption = true,
   secretKey: string | null = null
-): Promise<string> =>
-  new Promise((resolve, reject) => {
-    if (!input) {
-      resolve(input);
-      return;
-    }
-    if (!secretKey) {
-      reject(
-        new Error(
-          'secretKey is required. Device identifiers are not accepted as encryption keys.'
-        )
-      );
-      return;
-    }
-    NativeSecuritySuiteModule.storageDecrypt(
-      input,
-      secretKey,
-      hardEncryption,
-      (result: string | null, error: string | null) => {
-        if (error !== null) reject(error);
-        else if (result !== null) resolve(result);
-        else reject(new Error('DECRYPT_ERROR'));
-      }
+): Promise<string> => {
+  if (!input) {
+    return Promise.resolve(input);
+  }
+  if (!secretKey) {
+    return Promise.reject(
+      new Error(
+        'secretKey is required. Device identifiers are not accepted as encryption keys.'
+      )
     );
-  });
+  }
+  return NativeSecuritySuiteModule.storageDecrypt(
+    input,
+    secretKey,
+    hardEncryption
+  );
+};
 
 const SECURE_STORAGE_FAILED = 'Secure storage operation failed';
 
@@ -401,37 +463,40 @@ export function fetch(
   options: Options,
   loggerIsEnabled = __DEV__
 ): Promise<SuccessResponse | ErrorResponse> {
-  return new Promise((resolve, reject) => {
-    NativeSecuritySuiteModule.fetch(
-      url,
-      { ...normalizeFetchOptions(options), loggerIsEnabled },
-      (result: SuccessResponse, error: ErrorResponse) => {
-        if (error === null) {
-          resolve({
-            ...result,
-            json: () => jsonParse(result.response),
-          });
-        } else {
-          const errorJson = jsonParse(
-            typeof error?.error === 'string'
-              ? error.error
-              : JSON.stringify(error)
-          );
-          reject({
-            json: () => errorJson,
-            error: error?.error ?? error,
-            status: error?.status ?? 0,
-            url: error?.url ?? url,
-            path: errorJson?.path ?? '',
-            message: errorJson?.message ?? String(error?.error ?? error),
-            code: errorJson?.code ?? '',
-            duration: error?.duration ?? '',
-            ...errorJson,
-          });
-        }
-      }
-    );
-  });
+  return ensureLegacyV09Initialized().then(
+    () =>
+      new Promise((resolve, reject) => {
+        NativeSecuritySuiteModule.fetch(
+          url,
+          { ...normalizeFetchOptions(options), loggerIsEnabled },
+          (result: SuccessResponse, error: ErrorResponse) => {
+            if (error === null) {
+              resolve({
+                ...result,
+                json: () => jsonParse(result.response),
+              });
+            } else {
+              const errorJson = jsonParse(
+                typeof error?.error === 'string'
+                  ? error.error
+                  : JSON.stringify(error)
+              );
+              reject({
+                json: () => errorJson,
+                error: error?.error ?? error,
+                status: error?.status ?? 0,
+                url: error?.url ?? url,
+                path: errorJson?.path ?? '',
+                message: errorJson?.message ?? String(error?.error ?? error),
+                code: errorJson?.code ?? '',
+                duration: error?.duration ?? '',
+                ...errorJson,
+              });
+            }
+          }
+        );
+      })
+  );
 }
 
 export function deviceHasSecurityRisk(): Promise<boolean> {

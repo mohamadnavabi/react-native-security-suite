@@ -18,19 +18,12 @@ export function computeRiskScore(input: {
     riskScore += 40;
   }
 
-  if (input.runtime.fridaDetected) {
-    riskScore += 40;
-  }
-
-  if (input.runtime.xposedDetected) {
-    riskScore += 40;
-  }
-
-  if (input.runtime.substrateDetected) {
-    riskScore += 40;
-  }
-
-  if (input.runtime.magiskDetected) {
+  if (
+    input.runtime.fridaDetected ||
+    input.runtime.xposedDetected ||
+    input.runtime.substrateDetected ||
+    input.runtime.magiskDetected
+  ) {
     riskScore += 40;
   }
 

@@ -89,16 +89,48 @@ final class KeychainHelper {
         return []
     }
 
+    func saveKeyAgreementKeyPair(
+        privateKey: Data,
+        publicKey: Data,
+        profile: String
+    ) throws {
+        try save(privateKey, service: "com.securitysuite.keyagreement", account: "\(profile).private")
+        try save(publicKey, service: "com.securitysuite.keyagreement", account: "\(profile).public")
+    }
+
+    func loadKeyAgreementKeyPair(profile: String) throws -> (privateKey: Data, publicKey: Data)? {
+        guard let privateKey = try load(
+            service: "com.securitysuite.keyagreement",
+            account: "\(profile).private"
+        ),
+        let publicKey = try load(
+            service: "com.securitysuite.keyagreement",
+            account: "\(profile).public"
+        ) else {
+            return nil
+        }
+        return (privateKey, publicKey)
+    }
+
     func saveECDHKeyPair(privateKey: Data, publicKey: Data) throws {
-        try save(privateKey, service: "com.securitysuite.ecdh", account: "private")
-        try save(publicKey, service: "com.securitysuite.ecdh", account: "public")
+        try saveKeyAgreementKeyPair(privateKey: privateKey, publicKey: publicKey, profile: "ec-p256")
     }
 
     func loadECDHKeyPair() throws -> (privateKey: Data, publicKey: Data)? {
+        if let migrated = try loadKeyAgreementKeyPair(profile: "ec-p256") {
+            return migrated
+        }
+
         guard let privateKey = try load(service: "com.securitysuite.ecdh", account: "private"),
               let publicKey = try load(service: "com.securitysuite.ecdh", account: "public") else {
             return nil
         }
+
+        try saveKeyAgreementKeyPair(
+            privateKey: privateKey,
+            publicKey: publicKey,
+            profile: "ec-p256"
+        )
         return (privateKey, publicKey)
     }
 }

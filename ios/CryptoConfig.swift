@@ -13,7 +13,8 @@ struct CryptoConfig {
     static func from(dictionary: NSDictionary?) throws -> CryptoConfig {
         guard let dictionary = dictionary else {
             throw NSError(domain: "CryptoConfig", code: 0, userInfo: [
-                NSLocalizedDescriptionKey: "Crypto options are required",
+                NSLocalizedDescriptionKey:
+                    "Crypto options are required. Call SecuritySuite.initialize() before crypto APIs.",
             ])
         }
 
@@ -63,11 +64,15 @@ struct CryptoConfig {
     }
 
     private static func requireInt(_ dictionary: NSDictionary, key: String) throws -> Int {
-        guard let value = dictionary[key] as? Int else {
-            throw NSError(domain: "CryptoConfig", code: 0, userInfo: [
-                NSLocalizedDescriptionKey: "Missing required crypto option: \(key)",
-            ])
+        let value = dictionary[key]
+        if let intValue = value as? Int {
+            return intValue
         }
-        return value
+        if let numberValue = value as? NSNumber {
+            return numberValue.intValue
+        }
+        throw NSError(domain: "CryptoConfig", code: 0, userInfo: [
+            NSLocalizedDescriptionKey: "Missing required crypto option: \(key)",
+        ])
     }
 }

@@ -15,7 +15,7 @@ export type JwsHeaders = Record<string, JwsHeaderValue>;
 
 export type KeyAgreementAlgorithm = 'X25519' | 'ECDH' | (string & {});
 
-export type KeyType = 'OKP' | 'EC' | (string & {});
+export type KeyType = 'OKP' | 'EC' | 'Curve25519' | (string & {});
 
 export type EncryptionKeyAlgorithm = 'AES-256' | 'AES' | (string & {});
 
@@ -79,6 +79,7 @@ export enum SecurityErrorCode {
   SSL_PINNING_FAILED = 'SSL_PINNING_FAILED',
   SECURE_STORAGE_UNAVAILABLE = 'SECURE_STORAGE_UNAVAILABLE',
   CRYPTO_KEY_NOT_FOUND = 'CRYPTO_KEY_NOT_FOUND',
+  CONFIGURATION_ERROR = 'CONFIGURATION_ERROR',
 }
 
 export declare class SecurityError extends Error {
@@ -125,6 +126,54 @@ export interface ProtectionPolicy {
   minRiskLevel?: RiskLevel;
 }
 
+export interface HkdfConfig {
+  salt: string;
+  encryptionInfo: string;
+  hmacInfo: string;
+}
+
+export interface SslPinningDefaults {
+  validDomains: string[];
+  certificates: string[];
+}
+
+export interface JwsDefaults {
+  algorithm: JwsAlgorithm;
+  secret?: string;
+  keyAlias?: string;
+  headerName?: string;
+}
+
+export interface SecuritySuiteBehaviorConfig {
+  protection?: ProtectionPolicy;
+  secureNetwork?: {
+    requireHttps?: boolean;
+    logger?: {
+      enabled?: boolean;
+      redactHeaders?: string[];
+      redactBodyFields?: string[];
+    };
+  };
+  secureStorage?: {
+    service?: string;
+    requireAuthentication?: boolean;
+    accessibility?:
+      | 'whenUnlocked'
+      | 'whenUnlockedThisDeviceOnly'
+      | 'afterFirstUnlock'
+      | 'whenPasscodeSetThisDeviceOnly';
+  };
+}
+
+export interface SecuritySuiteInitConfig extends SecuritySuiteBehaviorConfig {
+  crypto: CryptoOptions;
+  hkdf?: HkdfConfig;
+  legacyV09Crypto?: boolean;
+  sslPinning?: SslPinningDefaults;
+  jws?: JwsDefaults;
+  obfuscationSecret?: string;
+}
+
 export interface SecurityReport {
   device: {
     isRooted: boolean;
@@ -153,7 +202,7 @@ interface SecureStorageInterface {
 }
 
 declare module 'react-native-security-suite' {
-  function getPublicKey(): Promise<string>;
+  function getPublicKey(options?: CryptoOptions): Promise<string>;
   function getSharedKey(
     serverPublicKey: string,
     options?: CryptoOptions
@@ -224,13 +273,19 @@ declare module 'react-native-security-suite' {
     verify(): Promise<AppIntegrityReport>;
   };
   const Crypto: {
-    getPublicKey(): Promise<string>;
+    getPublicKey(options?: CryptoOptions): Promise<string>;
     establishSharedKey(
       serverPublicKey: string,
       options?: CryptoOptions & { returnSharedKey?: boolean }
     ): Promise<string | void>;
+    encrypt(input: string, options?: CryptoOptions): Promise<string>;
+    decrypt(input: string, options?: CryptoOptions): Promise<string>;
   };
   const SecuritySuite: {
+    initialize(config: SecuritySuiteInitConfig): Promise<void>;
+    configure(config: SecuritySuiteBehaviorConfig): void;
+    isInitialized(): boolean;
+    requireConfig(): Readonly<SecuritySuiteInitConfig>;
     getSecurityReport(): Promise<SecurityReport>;
     protect(policy?: ProtectionPolicy): Promise<SecurityReport>;
   };

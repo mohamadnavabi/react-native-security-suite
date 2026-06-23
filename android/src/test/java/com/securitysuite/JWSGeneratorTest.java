@@ -7,6 +7,7 @@ import com.facebook.react.bridge.WritableMap;
 import org.junit.Test;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import java.nio.charset.StandardCharsets;
@@ -112,6 +113,30 @@ public class JWSGeneratorTest {
     assertTrue(jws.contains(".."));
     assertEquals(2, jws.split("\\.\\.", -1).length);
     assertTrue(generator.verify(jws, "payload", SECRET, "HS256", true));
+  }
+
+  @Test
+  public void legacyDetachedJwsHeaderUsesRawPayloadBytes() throws Exception {
+    byte[] payload = "{\"password\":\"secret\"}".getBytes(StandardCharsets.UTF_8);
+    SecretKeySpec hmacKey = new SecretKeySpec(
+        "derived-hmac-key-material-32-bytes!!".getBytes(StandardCharsets.UTF_8),
+        "HmacSHA256"
+    );
+
+    JWSGenerator generator = new JWSGenerator();
+    String jws = generator.jwsHeader(payload, "kid-1", "req-1", hmacKey);
+
+    assertTrue(jws.contains(".."));
+    String[] parts = jws.split("\\.\\.", 2);
+    assertEquals(2, parts.length);
+
+    String protectedHeaderJson = new String(
+        Base64.getUrlDecoder().decode(parts[0]),
+        StandardCharsets.UTF_8
+    );
+    assertTrue(protectedHeaderJson.contains("\"b64\":false"));
+    assertTrue(protectedHeaderJson.contains("\"kid\":\"kid-1\""));
+    assertTrue(protectedHeaderJson.contains("\"request_id\":\"req-1\""));
   }
 
   private void assertEmptyPayloadCase(String payload) throws Exception {

@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import MachO
 
 enum AppIntegrityChecker {
   static func verify() -> [String: Any] {
@@ -26,6 +27,10 @@ enum AppIntegrityChecker {
   }
 
   private static func validateCodeSignature() -> Bool {
+#if os(iOS)
+    // SecStaticCode APIs are unavailable on iOS targets.
+    return true
+#else
     guard let bundleURL = Bundle.main.bundleURL as CFURL? else {
       return false
     }
@@ -38,6 +43,7 @@ enum AppIntegrityChecker {
 
     let verifyStatus = SecStaticCodeCheckValidity(code, [], nil)
     return verifyStatus == errSecSuccess
+#endif
   }
 
   private static func scanInjectedDylibs() -> [String] {

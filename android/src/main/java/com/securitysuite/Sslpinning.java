@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import javax.crypto.SecretKey;
+
 import okhttp3.CertificatePinner;
 import okhttp3.Headers;
 import okhttp3.MediaType;
@@ -44,17 +46,18 @@ import okio.Buffer;
 
 public class Sslpinning {
   private final ReactApplicationContext context;
-  private static String hostname = "";
+  private String hostname = "";
   private static final String CONTENT_TYPE = "application/json; charset=utf-8";
   public static final MediaType mediaType = MediaType.parse(CONTENT_TYPE);
   String responseBodyString = "{}";
   Callback callback;
+  private final java.util.List<java.io.File> tempFiles = new java.util.ArrayList<>();
 
   public Sslpinning(ReactApplicationContext context) {
     this.context = context;
   }
 
-  public void fetch(String url, final ReadableMap options, Callback callback) {
+  public void fetch(String url, final ReadableMap options, SecretKey hmacKey, Callback callback) {
     this.callback = callback;
 
     if (!CryptoUtils.isHttpsUrl(url)) {
@@ -92,54 +95,18 @@ public class Sslpinning {
         return;
       }
 
-      String jwsHeader = "";
-      String jwsHeaderName = "X-Request-Signature";
-      if (options.hasKey("jws") && options.getMap("jws") != null) {
-        ReadableMap jwsOptions = options.getMap("jws");
-        if (jwsOptions == null || !jwsOptions.hasKey("secret")) {
-          callback.invoke(null, "JWS secret is required and must be a non-empty string");
-          return;
-        }
-        String secret = jwsOptions.getString("secret");
-        if (secret == null || secret.trim().isEmpty()) {
-          callback.invoke(null, "JWS secret is required and must be a non-empty string");
-          return;
-        }
-
-        if (jwsOptions.hasKey("headerName") && jwsOptions.getString("headerName") != null) {
-          jwsHeaderName = jwsOptions.getString("headerName");
-        }
-
-        byte[] requestBodyBytes = extractPayload(requestBody);
-        String payloadString = JwsFetchPayload.build(url, method, requestBodyBytes, jwsOptions);
-        boolean detached = jwsOptions.hasKey("detached") && jwsOptions.getBoolean("detached");
-        String algorithm = jwsOptions.hasKey("algorithm") ? jwsOptions.getString("algorithm") : null;
-        ReadableMap headers = jwsOptions.hasKey("headers") ? jwsOptions.getMap("headers") : null;
-
-        JWSGenerator jwsGenerator = new JWSGenerator();
-        jwsHeader = jwsGenerator.generate(
-            payloadString,
-            secret,
-            algorithm,
-            headers,
-            detached
+      JwsFetchSigner.Result jwsResult;
+      try {
+        jwsResult = JwsFetchSigner.sign(
+            url,
+            method,
+            extractPayload(requestBody),
+            options,
+            hmacKey
         );
-      } else if (options.hasKey("keyId") && options.hasKey("requestId")) {
-        if (!options.hasKey("secret")) {
-          callback.invoke(null, "JWS secret is required. Pass options.jws.secret or options.secret for legacy signing.");
-          return;
-        }
-        String secret = options.getString("secret");
-        if (secret == null || secret.trim().isEmpty()) {
-          callback.invoke(null, "JWS secret is required and must be a non-empty string");
-          return;
-        }
-        String keyId = options.getString("keyId");
-        String requestId = options.getString("requestId");
-        byte[] payload = extractPayload(requestBody);
-        JWSGenerator jwsGenerator = new JWSGenerator();
-        jwsHeader = jwsGenerator.jwsHeader(payload, keyId, requestId, secret);
-        jwsHeaderName = "X-JWS-Signature";
+      } catch (Exception e) {
+        callback.invoke(null, e.getMessage() != null ? e.getMessage() : "JWS signing failed");
+        return;
       }
 
       Request.Builder requestBuilder = new Request.Builder()
@@ -149,8 +116,8 @@ public class Sslpinning {
       if (header != null) {
         requestBuilder.headers(header);
       }
-      if (!jwsHeader.isEmpty()) {
-        requestBuilder.addHeader(jwsHeaderName, jwsHeader);
+      if (jwsResult != null && jwsResult.signature != null && !jwsResult.signature.isEmpty()) {
+        requestBuilder.addHeader(jwsResult.headerName, jwsResult.signature);
       }
 
       Request request = requestBuilder.build();
@@ -160,7 +127,8 @@ public class Sslpinning {
         Response response = client.newCall(request).execute();
         int responseCode = response.code();
 
-        byte[] bytes = response.body().bytes();
+        okhttp3.ResponseBody body = response.body();
+        byte[] bytes = body != null ? body.bytes() : new byte[0];
         responseBodyString = new String(bytes, StandardCharsets.UTF_8);
 
         output.putInt("status", responseCode);
@@ -183,6 +151,9 @@ public class Sslpinning {
         if (!(e instanceof SocketTimeoutException)) {
           e.printStackTrace();
         }
+      } finally {
+        for (java.io.File f : tempFiles) { f.delete(); }
+        tempFiles.clear();
       }
     } catch (Exception e) {
       callback.invoke(null, e.getMessage() != null ? e.getMessage() : "Request failed");
@@ -248,7 +219,7 @@ public class Sslpinning {
     if (domain == null) {
       throw new URISyntaxException(url, "Missing host");
     }
-    return domain.startsWith("www.") ? domain.substring(4) : domain;
+    return domain;
   }
 
   private String getMethod(ReadableMap options) {
@@ -336,7 +307,7 @@ public class Sslpinning {
 
         if (isFilePart(part)) {
           ReadableMap fileData = part.getMap(1);
-          addFormDataPart(this.context, multipartBodyBuilder, fileData, key);
+          addFormDataPart(multipartBodyBuilder, fileData, key);
         } else {
           multipartBodyBuilder.addFormDataPart(key, part.getString(1));
         }
@@ -345,8 +316,7 @@ public class Sslpinning {
     return multipartBodyBuilder.build();
   }
 
-  private static void addFormDataPart(
-      Context context,
+  private void addFormDataPart(
       MultipartBody.Builder multipartBodyBuilder,
       ReadableMap fileData,
       String key
@@ -364,6 +334,7 @@ public class Sslpinning {
 
     try {
       File file = getTempFile(context, uri);
+      tempFiles.add(file);
       multipartBodyBuilder.addFormDataPart(key, fileName, RequestBody.create(MediaType.parse(type), file));
     } catch (IOException e) {
       throw new IllegalStateException("Failed to read multipart file", e);

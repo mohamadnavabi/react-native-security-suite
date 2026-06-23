@@ -19,6 +19,7 @@ import {
   AppIntegrity,
   DeviceSecurity,
 } from 'react-native-security-suite';
+import { securitySuiteConfig } from './securitySuiteConfig';
 
 export default function App() {
   const [reportSummary, setReportSummary] = useState(
@@ -31,6 +32,8 @@ export default function App() {
 
     (async () => {
       try {
+        await SecuritySuite.initialize(securitySuiteConfig);
+
         fetch(
           'https://reqres.in/api/users?page=2',
           {

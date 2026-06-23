@@ -6,8 +6,11 @@ const LINKING_ERROR =
   '- You rebuilt the app after installing the package\n' +
   '- You are not using Expo managed workflow\n';
 
+import type { DerivedKeys, KeyPair } from '../crypto/types';
+
 export interface SecuritySuiteNativeModule {
-  getPublicKey(): Promise<string>;
+  configure?(config: Record<string, unknown>): Promise<void>;
+  getPublicKey(options?: Record<string, unknown> | null): Promise<string>;
   getSharedKey(
     serverPK: string,
     options: Record<string, unknown>
@@ -16,10 +19,51 @@ export interface SecuritySuiteNativeModule {
     serverPK: string,
     options: Record<string, unknown>
   ): Promise<void>;
+  encrypt(input: string, options: Record<string, unknown>): Promise<string>;
+  decrypt(input: string, options: Record<string, unknown>): Promise<string>;
+  storageEncrypt(
+    input: string,
+    secretKey: string,
+    hardEncryption: boolean
+  ): Promise<string>;
+  storageDecrypt(
+    input: string,
+    secretKey: string,
+    hardEncryption: boolean
+  ): Promise<string>;
   runtimeDetect(): Promise<Record<string, unknown>>;
   appIntegrityVerify(): Promise<Record<string, unknown>>;
   deviceGetEnvironment(): Promise<Record<string, unknown>>;
   deviceHasSecurityRisk(): Promise<boolean>;
+
+  // ─── CryptoManager ───────────────────────────────────────────────────────
+  cryptoHash(input: string, algorithm: string): Promise<string>;
+  cryptoDeriveKeys(params: Record<string, unknown>): Promise<DerivedKeys>;
+  cryptoEncryptAesGcm(plaintext: string, key: string): Promise<string>;
+  cryptoDecryptAesGcm(ciphertext: string, key: string): Promise<string>;
+  cryptoGetEcdhPublicKey(): Promise<string>;
+  cryptoEcdhComputeAndDeriveKeys(
+    params: Record<string, unknown>
+  ): Promise<DerivedKeys>;
+  cryptoGetX25519PublicKey(): Promise<string>;
+  cryptoX25519ComputeAndDeriveKeys(
+    params: Record<string, unknown>
+  ): Promise<DerivedKeys>;
+  cryptoGenerateEd25519KeyPair(): Promise<KeyPair>;
+  cryptoSignEd25519(message: string, privateKey: string): Promise<string>;
+  cryptoVerifyEd25519(
+    message: string,
+    signature: string,
+    publicKey: string
+  ): Promise<boolean>;
+  cryptoGenerateEcdsaKeyPair(): Promise<KeyPair>;
+  cryptoSignEcdsa(message: string, privateKey: string): Promise<string>;
+  cryptoVerifyEcdsa(
+    message: string,
+    signature: string,
+    publicKey: string
+  ): Promise<boolean>;
+
   [key: string]: unknown;
 }
 

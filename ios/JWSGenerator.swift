@@ -7,7 +7,13 @@ struct JWSGenerator {
     private static let safeHeaderValue = try! NSRegularExpression(pattern: "^[\\x20-\\x7E]+$")
 
     static func validateAlgorithm(_ algorithm: String?) throws -> String {
-        let value = algorithm ?? "HS256"
+        guard let value = algorithm, !value.isEmpty else {
+            throw NSError(
+                domain: "JWS",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "JWS algorithm is required"]
+            )
+        }
         switch value {
         case "HS256", "HS384", "HS512":
             return value
@@ -53,7 +59,51 @@ struct JWSGenerator {
             return try validateAlgorithm(headerAlg)
         }
 
-        return "HS256"
+        throw NSError(
+            domain: "JWS",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "JWS algorithm is required"]
+        )
+    }
+
+    static func generate(
+        payload: Data,
+        secret: Data,
+        algorithm: String?,
+        headers: [String: String]
+    ) throws -> String {
+        let alg = try validateAlgorithm(algorithm)
+        var headerFields: [String: Any] = [
+            "alg": alg,
+            "b64": false,
+            "crit": ["b64"],
+        ]
+
+        let sortedKeys = headers.keys.sorted()
+        for key in sortedKeys {
+            try validateHeaderKey(key)
+            guard let value = headers[key] else { continue }
+            try validateHeaderValue(value)
+            if key == "alg" || key == "b64" || key == "crit" { continue }
+            headerFields[key] = value
+        }
+
+        guard headerFields["kid"] != nil else {
+            throw NSError(domain: "JWS", code: 4, userInfo: [NSLocalizedDescriptionKey: "JWS header 'kid' is required"])
+        }
+        guard headerFields["request_id"] != nil else {
+            throw NSError(domain: "JWS", code: 5, userInfo: [NSLocalizedDescriptionKey: "JWS header 'request_id' is required"])
+        }
+
+        let headerData = try JSONSerialization.data(withJSONObject: headerFields, options: [.sortedKeys])
+        let encodedHeader = base64URLEncode(headerData)
+
+        var signingInput = Data(encodedHeader.utf8)
+        signingInput.append(0x2e)
+        signingInput.append(payload)
+
+        let signature = try sign(data: signingInput, secret: secret, algorithm: alg)
+        return "\(encodedHeader)..\(base64URLEncode(signature))"
     }
 
     static func generate(

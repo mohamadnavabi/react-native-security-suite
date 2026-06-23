@@ -3,11 +3,35 @@ import { Platform } from 'react-native';
 import { AppIntegrity } from '../integrity';
 import { DeviceSecurity } from '../device';
 import { RuntimeSecurity } from '../runtime';
+import {
+  configureSecuritySuiteBehavior,
+  initializeSecuritySuite,
+  isSecuritySuiteInitialized,
+  requireSecuritySuiteConfig,
+  type SecuritySuiteBehaviorConfig,
+  type SecuritySuiteInitConfig,
+} from '../config';
 import { enforceProtection, type ProtectionPolicy } from '../protection';
 import { computeRiskScore } from '../risk/score';
 import type { SecurityReport } from '../types/detection';
 
 export const SecuritySuite = {
+  initialize(config: SecuritySuiteInitConfig): Promise<void> {
+    return initializeSecuritySuite(config);
+  },
+
+  configure(config: SecuritySuiteBehaviorConfig): void {
+    configureSecuritySuiteBehavior(config);
+  },
+
+  isInitialized(): boolean {
+    return isSecuritySuiteInitialized();
+  },
+
+  requireConfig(): Readonly<SecuritySuiteInitConfig> {
+    return requireSecuritySuiteConfig();
+  },
+
   async getSecurityReport(): Promise<SecurityReport> {
     const [runtime, app, environment, isCompromised] = await Promise.all([
       RuntimeSecurity.detect(),
@@ -50,3 +74,10 @@ export const SecuritySuite = {
 };
 
 export type { SecurityReport };
+export type {
+  SecuritySuiteInitConfig,
+  SecuritySuiteBehaviorConfig,
+  HkdfConfig,
+  SslPinningDefaults,
+  JwsDefaults,
+} from '../config';

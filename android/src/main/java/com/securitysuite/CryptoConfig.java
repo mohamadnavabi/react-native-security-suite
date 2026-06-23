@@ -34,7 +34,9 @@ public final class CryptoConfig {
 
   public static CryptoConfig fromReadableMap(ReadableMap options) {
     if (options == null) {
-      throw new IllegalArgumentException("Crypto options are required");
+      throw new IllegalArgumentException(
+          "Crypto options are required. Call SecuritySuite.initialize() before crypto APIs."
+      );
     }
 
     return new CryptoConfig(
