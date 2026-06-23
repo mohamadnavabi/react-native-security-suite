@@ -84,11 +84,11 @@ Hiding algorithm choice in the library does not add real security — ECDH and A
 import type { CryptoOptions } from 'react-native-security-suite';
 
 export const cryptoOptions: CryptoOptions = {
-  keyAgreementAlgorithm: 'ECDH',
-  keyType: 'EC',
+  keyAgreementAlgorithm: 'X25519',
+  keyType: 'OKP',
   encryptionKeyAlgorithm: 'AES',
   hmacAlgorithm: 'HmacSHA256',
-  cipher: 'AES/GCM/NoPadding',
+  cipher: 'AES-GCM',
   tagLength: 128,
   ivLength: 12,
 };
