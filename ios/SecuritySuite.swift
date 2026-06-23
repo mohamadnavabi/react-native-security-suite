@@ -908,6 +908,61 @@ class SecuritySuite: NSObject {
         }
     }
 
+    @objc(cryptoRotateEcdhKeyPair:withRejecter:)
+    func cryptoRotateEcdhKeyPair(
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        do {
+            resolve(try CryptoManager.rotateEcdhKeyPair())
+        } catch {
+            reject("CRYPTO_KEY_EXCHANGE_ERROR", error.localizedDescription, error)
+        }
+    }
+
+    @objc(cryptoDeleteEcdhKeyPair:withRejecter:)
+    func cryptoDeleteEcdhKeyPair(
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        do {
+            try CryptoManager.deleteEcdhKeyPair()
+            resolve(nil)
+        } catch {
+            reject("CRYPTO_KEY_EXCHANGE_ERROR", error.localizedDescription, error)
+        }
+    }
+
+    @objc(cryptoEcdhEphemeralComputeAndDeriveKeys:withResolver:withRejecter:)
+    func cryptoEcdhEphemeralComputeAndDeriveKeys(
+        params: NSDictionary,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        do {
+            guard
+                let serverPublicKey = params["serverPublicKey"] as? String,
+                let salt = params["salt"] as? String,
+                let encryptionInfo = params["encryptionInfo"] as? String,
+                let macInfo = params["macInfo"] as? String,
+                let hmacAlgorithm = params["hmacAlgorithm"] as? String
+            else {
+                reject("CRYPTO_KEY_EXCHANGE_ERROR", "Missing required parameters", nil)
+                return
+            }
+            let keys = try CryptoManager.ecdhEphemeralComputeAndDeriveKeys(
+                serverPublicKeyBase64: serverPublicKey,
+                saltBase64: salt,
+                encryptionInfoBase64: encryptionInfo,
+                macInfoBase64: macInfo,
+                hmacAlgorithm: hmacAlgorithm
+            )
+            resolve(keys)
+        } catch {
+            reject("CRYPTO_KEY_EXCHANGE_ERROR", error.localizedDescription, error)
+        }
+    }
+
     @objc(cryptoGetX25519PublicKey:withRejecter:)
     func cryptoGetX25519PublicKey(
         resolve: @escaping RCTPromiseResolveBlock,
@@ -938,6 +993,61 @@ class SecuritySuite: NSObject {
                 return
             }
             let keys = try CryptoManager.x25519ComputeAndDeriveKeys(
+                serverPublicKeyBase64: serverPublicKey,
+                saltBase64: salt,
+                encryptionInfoBase64: encryptionInfo,
+                macInfoBase64: macInfo,
+                hmacAlgorithm: hmacAlgorithm
+            )
+            resolve(keys)
+        } catch {
+            reject("CRYPTO_KEY_EXCHANGE_ERROR", error.localizedDescription, error)
+        }
+    }
+
+    @objc(cryptoRotateX25519KeyPair:withRejecter:)
+    func cryptoRotateX25519KeyPair(
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        do {
+            resolve(try CryptoManager.rotateX25519KeyPair())
+        } catch {
+            reject("CRYPTO_KEY_EXCHANGE_ERROR", error.localizedDescription, error)
+        }
+    }
+
+    @objc(cryptoDeleteX25519KeyPair:withRejecter:)
+    func cryptoDeleteX25519KeyPair(
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        do {
+            try CryptoManager.deleteX25519KeyPair()
+            resolve(nil)
+        } catch {
+            reject("CRYPTO_KEY_EXCHANGE_ERROR", error.localizedDescription, error)
+        }
+    }
+
+    @objc(cryptoX25519EphemeralComputeAndDeriveKeys:withResolver:withRejecter:)
+    func cryptoX25519EphemeralComputeAndDeriveKeys(
+        params: NSDictionary,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        do {
+            guard
+                let serverPublicKey = params["serverPublicKey"] as? String,
+                let salt = params["salt"] as? String,
+                let encryptionInfo = params["encryptionInfo"] as? String,
+                let macInfo = params["macInfo"] as? String,
+                let hmacAlgorithm = params["hmacAlgorithm"] as? String
+            else {
+                reject("CRYPTO_KEY_EXCHANGE_ERROR", "Missing required parameters", nil)
+                return
+            }
+            let keys = try CryptoManager.x25519EphemeralComputeAndDeriveKeys(
                 serverPublicKeyBase64: serverPublicKey,
                 saltBase64: salt,
                 encryptionInfoBase64: encryptionInfo,

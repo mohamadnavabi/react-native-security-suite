@@ -14,6 +14,8 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.crypto.KeyAgreement;
 
@@ -77,5 +79,38 @@ public final class EcdhKeyExchange {
 
   public static String keyAlias() {
     return KEY_ALIAS;
+  }
+
+  public static void deleteKeyPair(Context context) throws Exception {
+    KeyStore keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
+    keyStore.load(null);
+    if (keyStore.containsAlias(KEY_ALIAS)) {
+      keyStore.deleteEntry(KEY_ALIAS);
+    }
+  }
+
+  /**
+   * Generates an in-memory-only P-256 ephemeral key pair (not in Keystore), performs
+   * ECDH with the server's DER-encoded public key, and returns the raw shared secret
+   * plus the ephemeral public key (DER/X.509). The ephemeral private key is discarded.
+   */
+  public static Map<String, byte[]> generateEphemeralAndComputeSharedSecret(
+      byte[] serverPublicKeyDer
+  ) throws Exception {
+    KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+    generator.initialize(new ECGenParameterSpec(EC_CURVE));
+    KeyPair ephemeralKeyPair = generator.generateKeyPair();
+
+    KeyFactory keyFactory = KeyFactory.getInstance("EC");
+    PublicKey serverPublicKey = keyFactory.generatePublic(new X509EncodedKeySpec(serverPublicKeyDer));
+    KeyAgreement agreement = KeyAgreement.getInstance("ECDH");
+    agreement.init(ephemeralKeyPair.getPrivate());
+    agreement.doPhase(serverPublicKey, true);
+    byte[] sharedSecret = agreement.generateSecret();
+
+    Map<String, byte[]> result = new HashMap<>();
+    result.put("publicKey", ephemeralKeyPair.getPublic().getEncoded());
+    result.put("sharedSecret", sharedSecret);
+    return result;
   }
 }

@@ -116,6 +116,53 @@ enum CryptoManager {
     ]
   }
 
+  // ─── ECDH key rotation / deletion ─────────────────────────────────────────
+
+  static func rotateEcdhKeyPair() throws -> String {
+    try EcdhKeyExchange.deleteKeyPair()
+    return try EcdhKeyExchange.getPublicKeyBase64()
+  }
+
+  static func deleteEcdhKeyPair() throws {
+    try EcdhKeyExchange.deleteKeyPair()
+  }
+
+  // ─── ECDH ephemeral ───────────────────────────────────────────────────────
+
+  static func ecdhEphemeralComputeAndDeriveKeys(
+    serverPublicKeyBase64: String,
+    saltBase64: String,
+    encryptionInfoBase64: String,
+    macInfoBase64: String,
+    hmacAlgorithm: String
+  ) throws -> [String: String] {
+    guard
+      let serverPublicKeyDer = Base64Utils.decode(serverPublicKeyBase64),
+      let salt = Base64Utils.decode(saltBase64),
+      let encInfo = Base64Utils.decode(encryptionInfoBase64),
+      let macInfo = Base64Utils.decode(macInfoBase64)
+    else {
+      throw NSError(domain: "CryptoManager", code: 0, userInfo: [
+        NSLocalizedDescriptionKey: "One or more inputs are not valid Base64",
+      ])
+    }
+    let result = try EcdhKeyExchange.generateEphemeralAndComputeSharedSecret(
+      serverPublicKeyDer: serverPublicKeyDer
+    )
+    let keys = try HkdfDerivation.deriveKeys(
+      sharedSecret: result.sharedSecret,
+      salt: salt,
+      encryptionInfo: encInfo,
+      macInfo: macInfo,
+      hmacAlgorithm: hmacAlgorithm
+    )
+    return [
+      "devicePublicKey": Base64Utils.encode(result.publicKey),
+      "encryptionKey": Base64Utils.encode(keys.encryptionKey),
+      "macKey": Base64Utils.encode(keys.macKey),
+    ]
+  }
+
   // ─── X25519 ───────────────────────────────────────────────────────────────
 
   static func getX25519PublicKey() throws -> String {
@@ -148,6 +195,53 @@ enum CryptoManager {
       hmacAlgorithm: hmacAlgorithm
     )
     return [
+      "encryptionKey": Base64Utils.encode(keys.encryptionKey),
+      "macKey": Base64Utils.encode(keys.macKey),
+    ]
+  }
+
+  // ─── X25519 key rotation / deletion ───────────────────────────────────────
+
+  static func rotateX25519KeyPair() throws -> String {
+    try X25519KeyExchange.deleteKeyPair()
+    return try X25519KeyExchange.getPublicKeyBase64()
+  }
+
+  static func deleteX25519KeyPair() throws {
+    try X25519KeyExchange.deleteKeyPair()
+  }
+
+  // ─── X25519 ephemeral ─────────────────────────────────────────────────────
+
+  static func x25519EphemeralComputeAndDeriveKeys(
+    serverPublicKeyBase64: String,
+    saltBase64: String,
+    encryptionInfoBase64: String,
+    macInfoBase64: String,
+    hmacAlgorithm: String
+  ) throws -> [String: String] {
+    guard
+      let serverPublicKeyRaw = Base64Utils.decode(serverPublicKeyBase64),
+      let salt = Base64Utils.decode(saltBase64),
+      let encInfo = Base64Utils.decode(encryptionInfoBase64),
+      let macInfo = Base64Utils.decode(macInfoBase64)
+    else {
+      throw NSError(domain: "CryptoManager", code: 0, userInfo: [
+        NSLocalizedDescriptionKey: "One or more inputs are not valid Base64",
+      ])
+    }
+    let result = try X25519KeyExchange.generateEphemeralAndComputeSharedSecret(
+      serverPublicKeyRaw: serverPublicKeyRaw
+    )
+    let keys = try HkdfDerivation.deriveKeys(
+      sharedSecret: result.sharedSecret,
+      salt: salt,
+      encryptionInfo: encInfo,
+      macInfo: macInfo,
+      hmacAlgorithm: hmacAlgorithm
+    )
+    return [
+      "devicePublicKey": Base64Utils.encode(result.publicKey),
       "encryptionKey": Base64Utils.encode(keys.encryptionKey),
       "macKey": Base64Utils.encode(keys.macKey),
     ]

@@ -21,7 +21,7 @@ Comprehensive mobile security for React Native — detection, cryptography, secu
 - [Quick Start](#quick-start)
 - [Security Detection](#security-detection)
 - [Threat Monitoring](#threat-monitoring)
-- [Cryptography](#cryptography)
+- [Cryptography](#cryptography) — static key exchange, ephemeral (forward secrecy), key rotation
 - [JWS Request Signing](#jws-request-signing)
 - [Secure Storage](#secure-storage)
 - [Network Security](#network-security)
@@ -46,7 +46,9 @@ Comprehensive mobile security for React Native — detection, cryptography, secu
 - `SecuritySuite.protect()` — throws `SecurityError` on policy violations
 
 **Cryptography**
-- ECDH (P-256) and X25519 key exchange
+- ECDH (P-256) and X25519 key exchange — static (hardware-backed) or ephemeral (forward secrecy)
+- Key rotation and deletion — `rotateEcdhKeyPair()`, `rotateX25519KeyPair()`, `deleteEcdhKeyPair()`, `deleteX25519KeyPair()`
+- Ephemeral key exchange — one-time key pair per session, private key never persisted
 - AES-256-GCM encryption/decryption
 - HKDF key derivation
 - Ed25519 and ECDSA P-256 digital signatures
@@ -258,12 +260,16 @@ monitor.stop();
 
 ### Key exchange + encryption
 
+Two modes are available: **static** (hardware-backed, persistent key pair) and **ephemeral** (new key per session, provides forward secrecy).
+
+#### Static key exchange (persistent)
+
 ```typescript
 import { KeyExchange, Encryption } from 'react-native-security-suite';
 
-// 1. Get client public key and send to server
+// 1. Get device public key — persisted in Android Keystore / iOS Keychain
 const clientPublicKey = await KeyExchange.getX25519PublicKey();
-// send clientPublicKey to your API …
+// send clientPublicKey to your server …
 
 // 2. Server responds with its public key → derive shared keys
 const { encryptionKey, macKey } = await KeyExchange.x25519ComputeAndDeriveKeys({
@@ -280,6 +286,46 @@ const plaintext2 = await Encryption.decryptAesGcm(ciphertext, encryptionKey);
 ```
 
 ECDH (P-256) works the same way via `KeyExchange.getEcdhPublicKey()` and `KeyExchange.ecdhComputeAndDeriveKeys()`.
+
+#### Ephemeral key exchange (forward secrecy)
+
+Generates a one-time key pair in memory, derives session keys, then discards the private key. Compromise of any single session does not expose past sessions.
+
+```typescript
+import { KeyExchange, Encryption } from 'react-native-security-suite';
+
+// Single call — generates ephemeral key pair, computes shared secret, derives keys
+const { devicePublicKey, encryptionKey, macKey } =
+  await KeyExchange.ecdhEphemeralComputeAndDeriveKeys({
+    serverPublicKey: serverPublicKeyBase64,  // server's DER-encoded P-256 public key
+    salt:            saltBase64,
+    encryptionInfo:  btoa('my-app/encryption'),
+    macInfo:         btoa('my-app/hmac'),
+    hmacAlgorithm:   'HmacSHA256',
+  });
+
+// Send devicePublicKey to your server so it can compute the matching shared secret
+await api.post('/session', { devicePublicKey });
+
+// Use derived keys for this session
+const ciphertext = await Encryption.encryptAesGcm(plaintext, encryptionKey);
+```
+
+X25519 variant: `KeyExchange.x25519EphemeralComputeAndDeriveKeys(params)` — same API, requires Android API 31+.
+
+#### Key rotation and deletion
+
+```typescript
+import { KeyExchange } from 'react-native-security-suite';
+
+// Rotate: delete old key and generate a fresh one — returns the new public key
+const newPublicKey = await KeyExchange.rotateEcdhKeyPair();
+const newX25519Key = await KeyExchange.rotateX25519KeyPair();
+
+// Delete: remove from secure storage (call on logout or security incident)
+await KeyExchange.deleteEcdhKeyPair();
+await KeyExchange.deleteX25519KeyPair();
+```
 
 ### Hashing
 
@@ -693,7 +739,7 @@ const { assertion } = await DeviceAttestation.generateAssertion(
 |--------|---------|
 | `Hashing` | `hash(input, algorithm)` — `'SHA-256'` or `'SHA-512'` |
 | `KDF` | `deriveKeys(params)` — HKDF with HMAC |
-| `KeyExchange` | `getEcdhPublicKey()`, `ecdhComputeAndDeriveKeys(params)`, `getX25519PublicKey()`, `x25519ComputeAndDeriveKeys(params)` |
+| `KeyExchange` | **Static:** `getEcdhPublicKey()`, `ecdhComputeAndDeriveKeys(params)`, `rotateEcdhKeyPair()`, `deleteEcdhKeyPair()`, `getX25519PublicKey()`, `x25519ComputeAndDeriveKeys(params)`, `rotateX25519KeyPair()`, `deleteX25519KeyPair()` · **Ephemeral:** `ecdhEphemeralComputeAndDeriveKeys(params)`, `x25519EphemeralComputeAndDeriveKeys(params)` |
 | `Encryption` | `encryptAesGcm(plaintext, keyBase64)`, `decryptAesGcm(ciphertext, keyBase64)` |
 | `Signatures` | `generateEd25519KeyPair()`, `signEd25519(msg, pk)`, `verifyEd25519(msg, sig, pub)`, `generateEcdsaKeyPair()`, `signEcdsa(msg, pk)`, `verifyEcdsa(msg, sig, pub)` |
 | `Random` | `randomBytes(count)` → base64 string, `randomUUID()` → UUID v4 string |
@@ -818,6 +864,8 @@ import { SecurityError, SecurityErrorCode, isSecurityError } from 'react-native-
 7. **Verify attestation server-side.** `DeviceAttestation.attestDevice()` returns an opaque blob. Your backend must verify it with Apple or Google before trusting it. Never use the client-side result alone to grant access.
 
 8. **Start `ThreatMonitor` after authentication,** not at app open. A 30-second interval is a reasonable balance between security and battery life.
+
+9. **Prefer ephemeral key exchange for session encryption.** Use `ecdhEphemeralComputeAndDeriveKeys` or `x25519EphemeralComputeAndDeriveKeys` instead of the static variants when you need per-session keys. The ephemeral private key is discarded after key agreement — even a full Keystore/Keychain extraction cannot recover past sessions. Reserve the persistent static key pair for long-lived device identity. Call `rotateEcdhKeyPair()` or `rotateX25519KeyPair()` periodically, and `deleteEcdhKeyPair()` / `deleteX25519KeyPair()` on logout.
 
 ---
 

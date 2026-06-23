@@ -45,6 +45,7 @@ import com.scottyab.rootbeer.RootBeer;
 import com.securitysuite.crypto.CryptoManager;
 import com.securitysuite.security.AppIntegrityChecker;
 import com.securitysuite.security.EmulatorDetector;
+import com.securitysuite.security.PlayIntegrityHelper;
 import com.securitysuite.security.RuntimeDetector;
 
 @ReactModule(name = SecuritySuiteModule.NAME)
@@ -629,6 +630,41 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void cryptoRotateEcdhKeyPair(Promise promise) {
+    try {
+      promise.resolve(CryptoManager.rotateEcdhKeyPair(context));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoDeleteEcdhKeyPair(Promise promise) {
+    try {
+      CryptoManager.deleteEcdhKeyPair(context);
+      promise.resolve(null);
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoEcdhEphemeralComputeAndDeriveKeys(ReadableMap params, Promise promise) {
+    try {
+      String serverPublicKey = requireParam(params, "serverPublicKey");
+      String salt = requireParam(params, "salt");
+      String encryptionInfo = requireParam(params, "encryptionInfo");
+      String macInfo = requireParam(params, "macInfo");
+      String hmacAlgorithm = requireParam(params, "hmacAlgorithm");
+      promise.resolve(CryptoManager.ecdhEphemeralComputeAndDeriveKeys(
+          context, serverPublicKey, salt, encryptionInfo, macInfo, hmacAlgorithm
+      ));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
   public void cryptoGetX25519PublicKey(Promise promise) {
     try {
       promise.resolve(CryptoManager.getX25519PublicKey(context));
@@ -646,6 +682,41 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
       String macInfo = requireParam(params, "macInfo");
       String hmacAlgorithm = requireParam(params, "hmacAlgorithm");
       promise.resolve(CryptoManager.x25519ComputeAndDeriveKeys(
+          context, serverPublicKey, salt, encryptionInfo, macInfo, hmacAlgorithm
+      ));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoRotateX25519KeyPair(Promise promise) {
+    try {
+      promise.resolve(CryptoManager.rotateX25519KeyPair(context));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoDeleteX25519KeyPair(Promise promise) {
+    try {
+      CryptoManager.deleteX25519KeyPair(context);
+      promise.resolve(null);
+    } catch (Exception e) {
+      promise.reject("CRYPTO_KEY_EXCHANGE_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void cryptoX25519EphemeralComputeAndDeriveKeys(ReadableMap params, Promise promise) {
+    try {
+      String serverPublicKey = requireParam(params, "serverPublicKey");
+      String salt = requireParam(params, "salt");
+      String encryptionInfo = requireParam(params, "encryptionInfo");
+      String macInfo = requireParam(params, "macInfo");
+      String hmacAlgorithm = requireParam(params, "hmacAlgorithm");
+      promise.resolve(CryptoManager.x25519EphemeralComputeAndDeriveKeys(
           context, serverPublicKey, salt, encryptionInfo, macInfo, hmacAlgorithm
       ));
     } catch (Exception e) {
@@ -887,16 +958,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void deviceAttestationIsSupported(Promise promise) {
-    // Play Integrity availability check would require Google Play Services.
-    // Return true only if Google Play Services is available.
-    try {
-      com.google.android.gms.common.GoogleApiAvailability api =
-          com.google.android.gms.common.GoogleApiAvailability.getInstance();
-      int result = api.isGooglePlayServicesAvailable(context);
-      promise.resolve(result == com.google.android.gms.common.ConnectionResult.SUCCESS);
-    } catch (Throwable t) {
-      promise.resolve(false);
-    }
+    promise.resolve(PlayIntegrityHelper.isPlayIntegrityAvailable(context));
   }
 
   @ReactMethod
@@ -917,19 +979,7 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void deviceAttestationGetPlayIntegrityToken(String nonce, Promise promise) {
-    try {
-      com.google.android.play.core.integrity.IntegrityManagerFactory
-          .create(context)
-          .requestIntegrityToken(
-              com.google.android.play.core.integrity.IntegrityTokenRequest.builder()
-                  .setNonce(nonce)
-                  .build()
-          )
-          .addOnSuccessListener(response -> promise.resolve(response.token()))
-          .addOnFailureListener(e -> promise.reject("ATTESTATION_ERROR", e.getMessage(), e));
-    } catch (Throwable t) {
-      promise.reject("ATTESTATION_ERROR", "Play Integrity API unavailable: " + t.getMessage(), t);
-    }
+    PlayIntegrityHelper.requestIntegrityToken(context, nonce, promise);
   }
 
   @Override

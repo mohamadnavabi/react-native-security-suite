@@ -45,3 +45,13 @@ export interface KeyExchangeComputeParams {
   macInfo: string;
   hmacAlgorithm: HkdfHmacAlgorithm;
 }
+
+/**
+ * Result of an ephemeral key exchange. In addition to the derived keys, the
+ * device's ephemeral public key is returned so the caller can forward it to the
+ * server (the server needs it to compute the same shared secret on their side).
+ */
+export interface EphemeralDerivedKeys extends DerivedKeys {
+  /** Base64-encoded ephemeral public key generated on the device. Send this to your server. */
+  devicePublicKey: string;
+}

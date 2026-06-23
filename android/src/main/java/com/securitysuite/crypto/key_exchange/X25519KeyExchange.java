@@ -15,6 +15,10 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.crypto.KeyAgreement;
 
 /**
@@ -89,14 +93,19 @@ public final class X25519KeyExchange {
     if (encoded.length == 32) {
       return encoded;
     }
-    if (encoded.length > 32) {
-      byte[] raw = new byte[32];
-      System.arraycopy(encoded, encoded.length - 32, raw, 0, 32);
-      return raw;
+    if (encoded.length == 44 && matchesSpkiPrefix(encoded)) {
+      return Arrays.copyOfRange(encoded, SPKI_PREFIX.length, 44);
     }
     throw new IllegalArgumentException(
-        "Invalid X25519 public key: expected at least 32 bytes, got " + encoded.length
+        "Invalid X25519 public key: expected 32 raw bytes or a 44-byte SPKI-wrapped key, got " + encoded.length
     );
+  }
+
+  private static boolean matchesSpkiPrefix(byte[] data) {
+    for (int i = 0; i < SPKI_PREFIX.length; i++) {
+      if (data[i] != SPKI_PREFIX[i]) return false;
+    }
+    return true;
   }
 
   static byte[] extractRaw32(byte[] spki) {
@@ -108,5 +117,41 @@ public final class X25519KeyExchange {
     System.arraycopy(SPKI_PREFIX, 0, spki, 0, SPKI_PREFIX.length);
     System.arraycopy(rawKey, 0, spki, SPKI_PREFIX.length, rawKey.length);
     return spki;
+  }
+
+  public static void deleteKeyPair(Context context) throws Exception {
+    KeyStore keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
+    keyStore.load(null);
+    if (keyStore.containsAlias(KEY_ALIAS)) {
+      keyStore.deleteEntry(KEY_ALIAS);
+    }
+  }
+
+  /**
+   * Generates an in-memory-only X25519 ephemeral key pair (not in Keystore), performs
+   * key agreement with the server's public key (raw 32 bytes or SPKI-wrapped), and
+   * returns the raw shared secret plus the ephemeral public key (raw 32 bytes).
+   * Requires Android API 31+.
+   */
+  public static Map<String, byte[]> generateEphemeralAndComputeSharedSecret(
+      byte[] serverPublicKeyRaw
+  ) throws Exception {
+    requireApi31();
+    KeyPairGenerator generator = KeyPairGenerator.getInstance("XDH");
+    generator.initialize(255);
+    KeyPair ephemeralKeyPair = generator.generateKeyPair();
+
+    byte[] rawKey = normalizeToRaw32(serverPublicKeyRaw);
+    KeyFactory keyFactory = KeyFactory.getInstance("XDH");
+    PublicKey serverPublicKey = keyFactory.generatePublic(new X509EncodedKeySpec(wrapSpki(rawKey)));
+    KeyAgreement agreement = KeyAgreement.getInstance("XDH");
+    agreement.init(ephemeralKeyPair.getPrivate());
+    agreement.doPhase(serverPublicKey, true);
+    byte[] sharedSecret = agreement.generateSecret();
+
+    Map<String, byte[]> result = new HashMap<>();
+    result.put("publicKey", extractRaw32(ephemeralKeyPair.getPublic().getEncoded()));
+    result.put("sharedSecret", sharedSecret);
+    return result;
   }
 }

@@ -59,9 +59,21 @@ RCT_EXTERN_METHOD(cryptoGetEcdhPublicKey:(RCTPromiseResolveBlock)resolve withRej
 
 RCT_EXTERN_METHOD(cryptoEcdhComputeAndDeriveKeys:(NSDictionary)params withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(cryptoRotateEcdhKeyPair:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(cryptoDeleteEcdhKeyPair:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(cryptoEcdhEphemeralComputeAndDeriveKeys:(NSDictionary)params withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(cryptoGetX25519PublicKey:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(cryptoX25519ComputeAndDeriveKeys:(NSDictionary)params withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(cryptoRotateX25519KeyPair:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(cryptoDeleteX25519KeyPair:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(cryptoX25519EphemeralComputeAndDeriveKeys:(NSDictionary)params withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(cryptoGenerateEd25519KeyPair:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 

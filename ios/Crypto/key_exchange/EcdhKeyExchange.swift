@@ -69,4 +69,33 @@ enum EcdhKeyExchange {
       ])
     }
   }
+
+  static func deleteKeyPair() throws {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: privateKeyAccount,
+    ]
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw NSError(domain: "EcdhKeyExchange", code: Int(status), userInfo: [
+        NSLocalizedDescriptionKey: "Failed to delete ECDH P-256 key pair (OSStatus \(status))",
+      ])
+    }
+  }
+
+  /**
+   * Generates an in-memory-only P-256 ephemeral key pair, performs ECDH with the
+   * server's DER-encoded public key, and returns the raw shared secret plus the
+   * ephemeral public key (DER). The ephemeral private key is never persisted.
+   */
+  static func generateEphemeralAndComputeSharedSecret(
+    serverPublicKeyDer: Data
+  ) throws -> (publicKey: Data, sharedSecret: Data) {
+    let ephemeralKey = P256.KeyAgreement.PrivateKey()
+    let serverPublicKey = try P256.KeyAgreement.PublicKey(derRepresentation: serverPublicKeyDer)
+    let sharedSecret = try ephemeralKey.sharedSecretFromKeyAgreement(with: serverPublicKey)
+      .withUnsafeBytes { Data($0) }
+    return (publicKey: ephemeralKey.publicKey.derRepresentation, sharedSecret: sharedSecret)
+  }
 }

@@ -82,6 +82,7 @@ export type {
   HashAlgorithm,
   HkdfHmacAlgorithm,
   DerivedKeys,
+  EphemeralDerivedKeys,
   KeyPair,
   HkdfDeriveParams,
   KeyExchangeComputeParams,

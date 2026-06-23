@@ -6,7 +6,11 @@ const LINKING_ERROR =
   '- You rebuilt the app after installing the package\n' +
   '- You are not using Expo managed workflow\n';
 
-import type { DerivedKeys, KeyPair } from '../crypto/types';
+import type {
+  DerivedKeys,
+  EphemeralDerivedKeys,
+  KeyPair,
+} from '../crypto/types';
 
 export interface SecuritySuiteNativeModule {
   configure?(config: Record<string, unknown>): Promise<void>;
@@ -45,10 +49,20 @@ export interface SecuritySuiteNativeModule {
   cryptoEcdhComputeAndDeriveKeys(
     params: Record<string, unknown>
   ): Promise<DerivedKeys>;
+  cryptoRotateEcdhKeyPair(): Promise<string>;
+  cryptoDeleteEcdhKeyPair(): Promise<void>;
+  cryptoEcdhEphemeralComputeAndDeriveKeys(
+    params: Record<string, unknown>
+  ): Promise<EphemeralDerivedKeys>;
   cryptoGetX25519PublicKey(): Promise<string>;
   cryptoX25519ComputeAndDeriveKeys(
     params: Record<string, unknown>
   ): Promise<DerivedKeys>;
+  cryptoRotateX25519KeyPair(): Promise<string>;
+  cryptoDeleteX25519KeyPair(): Promise<void>;
+  cryptoX25519EphemeralComputeAndDeriveKeys(
+    params: Record<string, unknown>
+  ): Promise<EphemeralDerivedKeys>;
   cryptoGenerateEd25519KeyPair(): Promise<KeyPair>;
   cryptoSignEd25519(message: string, privateKey: string): Promise<string>;
   cryptoVerifyEd25519(

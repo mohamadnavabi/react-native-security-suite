@@ -40,11 +40,15 @@ enum X25519KeyExchange {
       .withUnsafeBytes { Data($0) }
   }
 
+  private static let spkiPrefix = Data([
+    0x30, 0x2A, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x6E, 0x03, 0x21, 0x00,
+  ])
+
   private static func normalizeToRaw32(_ data: Data) throws -> Data {
     if data.count == 32 { return data }
-    if data.count > 32 { return data.suffix(32) }
+    if data.count == 44 && data.prefix(12) == spkiPrefix { return data.dropFirst(12) }
     throw NSError(domain: "X25519KeyExchange", code: 0, userInfo: [
-      NSLocalizedDescriptionKey: "Invalid X25519 public key: expected at least 32 bytes, got \(data.count)",
+      NSLocalizedDescriptionKey: "Invalid X25519 public key: expected 32 raw bytes or a 44-byte SPKI-wrapped key, got \(data.count) bytes",
     ])
   }
 
@@ -78,5 +82,35 @@ enum X25519KeyExchange {
         NSLocalizedDescriptionKey: "Failed to save X25519 private key to Keychain (OSStatus \(status))",
       ])
     }
+  }
+
+  static func deleteKeyPair() throws {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: privateKeyAccount,
+    ]
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw NSError(domain: "X25519KeyExchange", code: Int(status), userInfo: [
+        NSLocalizedDescriptionKey: "Failed to delete X25519 key pair (OSStatus \(status))",
+      ])
+    }
+  }
+
+  /**
+   * Generates an in-memory-only X25519 ephemeral key pair, performs key agreement with
+   * the server's public key, and returns the raw shared secret plus the ephemeral public
+   * key (raw 32 bytes). The ephemeral private key is never persisted.
+   */
+  static func generateEphemeralAndComputeSharedSecret(
+    serverPublicKeyRaw: Data
+  ) throws -> (publicKey: Data, sharedSecret: Data) {
+    let ephemeralKey = Curve25519.KeyAgreement.PrivateKey()
+    let normalized = try normalizeToRaw32(serverPublicKeyRaw)
+    let serverPublicKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: normalized)
+    let sharedSecret = try ephemeralKey.sharedSecretFromKeyAgreement(with: serverPublicKey)
+      .withUnsafeBytes { Data($0) }
+    return (publicKey: ephemeralKey.publicKey.rawRepresentation, sharedSecret: sharedSecret)
   }
 }

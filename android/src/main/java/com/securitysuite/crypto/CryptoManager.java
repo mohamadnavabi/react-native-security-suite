@@ -111,6 +111,45 @@ public final class CryptoManager {
     return result;
   }
 
+  // ─── ECDH key rotation / deletion ─────────────────────────────────────────
+
+  public static String rotateEcdhKeyPair(Context context) throws Exception {
+    EcdhKeyExchange.deleteKeyPair(context);
+    return EcdhKeyExchange.getPublicKeyBase64(context);
+  }
+
+  public static void deleteEcdhKeyPair(Context context) throws Exception {
+    EcdhKeyExchange.deleteKeyPair(context);
+  }
+
+  // ─── ECDH ephemeral ───────────────────────────────────────────────────────
+
+  public static WritableMap ecdhEphemeralComputeAndDeriveKeys(
+      Context context,
+      String serverPublicKeyBase64,
+      String saltBase64,
+      String encryptionInfoBase64,
+      String macInfoBase64,
+      String hmacAlgorithm
+  ) throws Exception {
+    java.util.Map<String, byte[]> ephemeral = EcdhKeyExchange.generateEphemeralAndComputeSharedSecret(
+        Base64Utils.decode(serverPublicKeyBase64)
+    );
+    HkdfDerivation.DerivedKeys keys = HkdfDerivation.deriveKeys(
+        ephemeral.get("sharedSecret"),
+        Base64Utils.decode(saltBase64),
+        Base64Utils.decode(encryptionInfoBase64),
+        Base64Utils.decode(macInfoBase64),
+        32,
+        hmacAlgorithm
+    );
+    WritableMap result = Arguments.createMap();
+    result.putString("devicePublicKey", Base64Utils.encode(ephemeral.get("publicKey")));
+    result.putString("encryptionKey", Base64Utils.encode(keys.encryptionKey));
+    result.putString("macKey", Base64Utils.encode(keys.macKey));
+    return result;
+  }
+
   // ─── X25519 ───────────────────────────────────────────────────────────────
 
   public static String getX25519PublicKey(Context context) throws Exception {
@@ -137,6 +176,45 @@ public final class CryptoManager {
         hmacAlgorithm
     );
     WritableMap result = Arguments.createMap();
+    result.putString("encryptionKey", Base64Utils.encode(keys.encryptionKey));
+    result.putString("macKey", Base64Utils.encode(keys.macKey));
+    return result;
+  }
+
+  // ─── X25519 key rotation / deletion ───────────────────────────────────────
+
+  public static String rotateX25519KeyPair(Context context) throws Exception {
+    X25519KeyExchange.deleteKeyPair(context);
+    return X25519KeyExchange.getPublicKeyBase64(context);
+  }
+
+  public static void deleteX25519KeyPair(Context context) throws Exception {
+    X25519KeyExchange.deleteKeyPair(context);
+  }
+
+  // ─── X25519 ephemeral ─────────────────────────────────────────────────────
+
+  public static WritableMap x25519EphemeralComputeAndDeriveKeys(
+      Context context,
+      String serverPublicKeyBase64,
+      String saltBase64,
+      String encryptionInfoBase64,
+      String macInfoBase64,
+      String hmacAlgorithm
+  ) throws Exception {
+    java.util.Map<String, byte[]> ephemeral = X25519KeyExchange.generateEphemeralAndComputeSharedSecret(
+        Base64Utils.decode(serverPublicKeyBase64)
+    );
+    HkdfDerivation.DerivedKeys keys = HkdfDerivation.deriveKeys(
+        ephemeral.get("sharedSecret"),
+        Base64Utils.decode(saltBase64),
+        Base64Utils.decode(encryptionInfoBase64),
+        Base64Utils.decode(macInfoBase64),
+        32,
+        hmacAlgorithm
+    );
+    WritableMap result = Arguments.createMap();
+    result.putString("devicePublicKey", Base64Utils.encode(ephemeral.get("publicKey")));
     result.putString("encryptionKey", Base64Utils.encode(keys.encryptionKey));
     result.putString("macKey", Base64Utils.encode(keys.macKey));
     return result;
