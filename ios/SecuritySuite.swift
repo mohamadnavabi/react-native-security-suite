@@ -1099,7 +1099,7 @@ class SecuritySuite: NSObject {
         value: NSString,
         options: NSDictionary,
         resolve: @escaping RCTPromiseResolveBlock,
-        reject: RCTPromiseRejectBlock
+        reject: @escaping RCTPromiseRejectBlock
     ) {
         let prompt = options["prompt"] as? String ?? "Authenticate to save"
         DispatchQueue.global(qos: .userInitiated).async {
@@ -1136,7 +1136,7 @@ class SecuritySuite: NSObject {
         key: NSString,
         options: NSDictionary,
         resolve: @escaping RCTPromiseResolveBlock,
-        reject: RCTPromiseRejectBlock
+        reject: @escaping RCTPromiseRejectBlock
     ) {
         let prompt = options["prompt"] as? String ?? "Authenticate to read"
         DispatchQueue.global(qos: .userInitiated).async {
