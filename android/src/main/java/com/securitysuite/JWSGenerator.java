@@ -4,6 +4,9 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 
+import com.securitysuite.crypto.signatures.EcdsaSigner;
+import com.securitysuite.crypto.signatures.Ed25519Signer;
+
 import org.json.JSONObject;
 
 import javax.crypto.Mac;
@@ -333,5 +336,49 @@ public class JWSGenerator {
       }
     }
     return map;
+  }
+
+  // ─── Asymmetric JWS (ES256 / EdDSA) ─────────────────────────────────────────
+
+  public String generateAsymmetric(
+      String payloadString,
+      String privateKeyBase64,
+      String algorithm,
+      ReadableMap headers,
+      boolean detached
+  ) throws Exception {
+    if (privateKeyBase64 == null || privateKeyBase64.trim().isEmpty()) {
+      throw new IllegalArgumentException("privateKey is required");
+    }
+    if (!"ES256".equals(algorithm) && !"EdDSA".equals(algorithm)) {
+      throw new IllegalArgumentException(
+          "Expected asymmetric algorithm (ES256 or EdDSA), got: " + algorithm
+      );
+    }
+
+    byte[] privateKeyBytes = android.util.Base64.decode(
+        privateKeyBase64, android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE
+    );
+
+    JSONObject header = buildProtectedHeader(algorithm, headers);
+    byte[] headerBytes = serializeHeader(header);
+    String encodedProtectedHeader = CryptoUtils.base64UrlEncode(headerBytes);
+    String encodedPayload = encodePayload(payloadString);
+    byte[] signingInput = buildSigningInputBytes(encodedProtectedHeader, encodedPayload);
+
+    byte[] signature;
+    switch (algorithm) {
+      case "ES256":
+        signature = EcdsaSigner.sign(signingInput, privateKeyBytes);
+        break;
+      case "EdDSA":
+        signature = Ed25519Signer.sign(signingInput, privateKeyBytes);
+        break;
+      default:
+        throw new IllegalArgumentException("Unsupported asymmetric algorithm: " + algorithm);
+    }
+
+    String encodedSignature = CryptoUtils.base64UrlEncode(signature);
+    return formatCompactJws(encodedProtectedHeader, encodedPayload, encodedSignature, detached);
   }
 }

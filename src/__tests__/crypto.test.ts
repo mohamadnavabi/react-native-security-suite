@@ -11,11 +11,11 @@ jest.mock('../native/bridge', () => ({
 }));
 
 const cryptoOptions: CryptoOptions = {
-  keyAgreementAlgorithm: 'ECDH',
-  keyType: 'EC',
+  keyAgreementAlgorithm: 'X25519',
+  keyType: 'OKP',
   encryptionKeyAlgorithm: 'AES',
   hmacAlgorithm: 'HmacSHA256',
-  cipher: 'AES/GCM/NoPadding',
+  cipher: 'AES-GCM',
   tagLength: 128,
   ivLength: 12,
 };
@@ -30,11 +30,11 @@ describe('Crypto.getPublicKey', () => {
     await Crypto.getPublicKey(cryptoOptions);
 
     expect(mockGetPublicKey).toHaveBeenCalledWith({
-      keyAgreementAlgorithm: 'ECDH',
-      keyFactoryAlgorithm: 'EC',
+      keyAgreementAlgorithm: 'X25519',
+      keyFactoryAlgorithm: 'OKP',
       encryptionKeyAlgorithm: 'AES',
       hmacKeyAlgorithm: 'HmacSHA256',
-      cipherTransformation: 'AES/GCM/NoPadding',
+      cipherTransformation: 'AES-GCM',
       gcmTagLength: 128,
       gcmIvLength: 12,
     });

@@ -154,6 +154,8 @@ public final class CryptoUtils {
       case "HS256":
       case "HS384":
       case "HS512":
+      case "ES256":
+      case "EdDSA":
         return algorithm;
       default:
         throw new IllegalArgumentException("Unsupported JWS algorithm: " + algorithm);

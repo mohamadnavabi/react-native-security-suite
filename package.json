@@ -1,6 +1,6 @@
 {
   "name": "react-native-security-suite",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Comprehensive security suite for React Native apps - Root/Jailbreak detection, SSL pinning, encryption, secure storage, screenshot protection, and network monitoring",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",

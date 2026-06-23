@@ -1,2 +1,7 @@
-/** Phase 2+ namespace placeholder — SecureView remains on legacy export for v0.9 compat. */
 export { SecureView } from '../SecureView';
+export {
+  BackgroundProtection,
+  ScreenSecurity,
+  useBackgroundProtection,
+} from './BackgroundProtection';
+export type { BackgroundProtectionOptions } from './BackgroundProtection';

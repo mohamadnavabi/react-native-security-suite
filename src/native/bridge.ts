@@ -64,6 +64,40 @@ export interface SecuritySuiteNativeModule {
     publicKey: string
   ): Promise<boolean>;
 
+  // ─── CSPRNG ──────────────────────────────────────────────────────────────
+  cryptoRandomBytes(count: number): Promise<string>;
+
+  // ─── Asymmetric JWS ──────────────────────────────────────────────────────
+  generateAsymmetricJWS(options: Record<string, unknown>): Promise<string>;
+
+  // ─── Biometric SecureStorage ──────────────────────────────────────────────
+  secureStorageSetItemBiometric(
+    key: string,
+    value: string,
+    options: Record<string, unknown>
+  ): Promise<void>;
+  secureStorageGetItemBiometric(
+    key: string,
+    options: Record<string, unknown>
+  ): Promise<string | null>;
+  secureStorageBiometricIsAvailable(): Promise<boolean>;
+
+  // ─── Background / window security ────────────────────────────────────────
+  screenSetWindowSecure(enabled: boolean): Promise<void>;
+
+  // ─── Device Attestation ──────────────────────────────────────────────────
+  deviceAttestationIsSupported(): Promise<boolean>;
+  deviceAttestationGenerateKey(): Promise<string>;
+  deviceAttestationAttestKey(
+    keyId: string,
+    clientDataHash: string
+  ): Promise<string>;
+  deviceAttestationGenerateAssertion(
+    keyId: string,
+    clientDataHash: string
+  ): Promise<string>;
+  deviceAttestationGetPlayIntegrityToken(nonce: string): Promise<string>;
+
   [key: string]: unknown;
 }
 

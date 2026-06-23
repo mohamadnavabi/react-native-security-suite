@@ -31,6 +31,15 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import android.app.Activity;
+import android.hardware.biometrics.BiometricManager;
+import android.os.Build;
+import android.view.WindowManager;
+
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentActivity;
+
 import com.scottyab.rootbeer.RootBeer;
 
 import com.securitysuite.crypto.CryptoManager;
@@ -707,6 +716,220 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
       throw new IllegalArgumentException("Missing required parameter: " + key);
     }
     return value;
+  }
+
+  // ─── CSPRNG ─────────────────────────────────────────────────────────────────
+
+  @ReactMethod
+  public void cryptoRandomBytes(int count, Promise promise) {
+    try {
+      byte[] bytes = new byte[count];
+      new java.security.SecureRandom().nextBytes(bytes);
+      promise.resolve(android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP));
+    } catch (Exception e) {
+      promise.reject("CRYPTO_RANDOM_ERROR", e.getMessage(), e);
+    }
+  }
+
+  // ─── Asymmetric JWS ─────────────────────────────────────────────────────────
+
+  @ReactMethod
+  public void generateAsymmetricJWS(ReadableMap options, Promise promise) {
+    try {
+      String privateKey = options.hasKey("privateKey") ? options.getString("privateKey") : null;
+      if (privateKey == null || privateKey.trim().isEmpty()) {
+        promise.reject("JWS_ERROR", "privateKey is required");
+        return;
+      }
+      String algorithm = options.hasKey("algorithm") ? options.getString("algorithm") : null;
+      if (algorithm == null || algorithm.isEmpty()) {
+        promise.reject("JWS_ERROR", "algorithm is required");
+        return;
+      }
+      String payload = "";
+      if (options.hasKey("payload") && !options.isNull("payload")) {
+        payload = options.getString("payload");
+      }
+      ReadableMap headers = options.hasKey("headers") ? options.getMap("headers") : null;
+      boolean detached = options.hasKey("detached") && options.getBoolean("detached");
+
+      JWSGenerator generator = new JWSGenerator();
+      String jws = generator.generateAsymmetric(payload, privateKey, algorithm, headers, detached);
+      promise.resolve(jws);
+    } catch (Exception e) {
+      promise.reject("JWS_ERROR", e.getMessage(), e);
+    }
+  }
+
+  // ─── Biometric SecureStorage ─────────────────────────────────────────────────
+
+  @ReactMethod
+  public void secureStorageBiometricIsAvailable(Promise promise) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      android.hardware.biometrics.BiometricManager bm =
+          context.getSystemService(android.hardware.biometrics.BiometricManager.class);
+      if (bm != null) {
+        promise.resolve(
+            bm.canAuthenticate(android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS
+        );
+        return;
+      }
+    }
+    promise.resolve(false);
+  }
+
+  @ReactMethod
+  public void secureStorageSetItemBiometric(String key, String value, ReadableMap options, Promise promise) {
+    String prompt = options != null && options.hasKey("prompt") ? options.getString("prompt") : "Authenticate to save";
+    String subtitle = options != null && options.hasKey("subtitle") ? options.getString("subtitle") : "";
+    Activity activity = getCurrentActivity();
+    if (!(activity instanceof FragmentActivity)) {
+      promise.reject("BIOMETRIC_UNAVAILABLE", "Biometric authentication requires a FragmentActivity");
+      return;
+    }
+    activity.runOnUiThread(() -> {
+      BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+          .setTitle(prompt)
+          .setSubtitle(subtitle)
+          .setNegativeButtonText("Cancel")
+          .build();
+
+      BiometricPrompt biometricPrompt = new BiometricPrompt(
+          (FragmentActivity) activity,
+          ContextCompat.getMainExecutor(context),
+          new BiometricPrompt.AuthenticationCallback() {
+            @Override
+            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+              try {
+                SecureStorageNative.setItem(context, key, value);
+                promise.resolve(null);
+              } catch (Exception e) {
+                promise.reject("SECURE_STORAGE_ERROR", e.getMessage(), e);
+              }
+            }
+            @Override
+            public void onAuthenticationError(int errorCode, CharSequence errString) {
+              promise.reject("BIOMETRIC_AUTH_FAILED", errString.toString());
+            }
+            @Override
+            public void onAuthenticationFailed() {
+              promise.reject("BIOMETRIC_AUTH_FAILED", "Biometric authentication failed");
+            }
+          }
+      );
+      biometricPrompt.authenticate(promptInfo);
+    });
+  }
+
+  @ReactMethod
+  public void secureStorageGetItemBiometric(String key, ReadableMap options, Promise promise) {
+    String prompt = options != null && options.hasKey("prompt") ? options.getString("prompt") : "Authenticate to read";
+    String subtitle = options != null && options.hasKey("subtitle") ? options.getString("subtitle") : "";
+    Activity activity = getCurrentActivity();
+    if (!(activity instanceof FragmentActivity)) {
+      promise.reject("BIOMETRIC_UNAVAILABLE", "Biometric authentication requires a FragmentActivity");
+      return;
+    }
+    activity.runOnUiThread(() -> {
+      BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+          .setTitle(prompt)
+          .setSubtitle(subtitle)
+          .setNegativeButtonText("Cancel")
+          .build();
+
+      BiometricPrompt biometricPrompt = new BiometricPrompt(
+          (FragmentActivity) activity,
+          ContextCompat.getMainExecutor(context),
+          new BiometricPrompt.AuthenticationCallback() {
+            @Override
+            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+              try {
+                promise.resolve(SecureStorageNative.getItem(context, key));
+              } catch (Exception e) {
+                promise.reject("SECURE_STORAGE_ERROR", e.getMessage(), e);
+              }
+            }
+            @Override
+            public void onAuthenticationError(int errorCode, CharSequence errString) {
+              promise.reject("BIOMETRIC_AUTH_FAILED", errString.toString());
+            }
+            @Override
+            public void onAuthenticationFailed() {
+              promise.reject("BIOMETRIC_AUTH_FAILED", "Biometric authentication failed");
+            }
+          }
+      );
+      biometricPrompt.authenticate(promptInfo);
+    });
+  }
+
+  // ─── Background / window security ─────────────────────────────────────────────
+
+  @ReactMethod
+  public void screenSetWindowSecure(boolean enabled, Promise promise) {
+    Activity activity = getCurrentActivity();
+    if (activity == null) {
+      promise.resolve(null);
+      return;
+    }
+    activity.runOnUiThread(() -> {
+      if (enabled) {
+        activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+      } else {
+        activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+      }
+      promise.resolve(null);
+    });
+  }
+
+  // ─── Device Attestation (Play Integrity stub) ─────────────────────────────────
+
+  @ReactMethod
+  public void deviceAttestationIsSupported(Promise promise) {
+    // Play Integrity availability check would require Google Play Services.
+    // Return true only if Google Play Services is available.
+    try {
+      com.google.android.gms.common.GoogleApiAvailability api =
+          com.google.android.gms.common.GoogleApiAvailability.getInstance();
+      int result = api.isGooglePlayServicesAvailable(context);
+      promise.resolve(result == com.google.android.gms.common.ConnectionResult.SUCCESS);
+    } catch (Throwable t) {
+      promise.resolve(false);
+    }
+  }
+
+  @ReactMethod
+  public void deviceAttestationGenerateKey(Promise promise) {
+    // On Android, Play Integrity uses a nonce-only flow — no persistent key generation needed.
+    promise.resolve("");
+  }
+
+  @ReactMethod
+  public void deviceAttestationAttestKey(String keyId, String clientDataHash, Promise promise) {
+    promise.reject("ATTESTATION_UNSUPPORTED", "Use getPlayIntegrityToken on Android");
+  }
+
+  @ReactMethod
+  public void deviceAttestationGenerateAssertion(String keyId, String clientDataHash, Promise promise) {
+    promise.reject("ATTESTATION_UNSUPPORTED", "Use getPlayIntegrityToken on Android");
+  }
+
+  @ReactMethod
+  public void deviceAttestationGetPlayIntegrityToken(String nonce, Promise promise) {
+    try {
+      com.google.android.play.core.integrity.IntegrityManagerFactory
+          .create(context)
+          .requestIntegrityToken(
+              com.google.android.play.core.integrity.IntegrityTokenRequest.builder()
+                  .setNonce(nonce)
+                  .build()
+          )
+          .addOnSuccessListener(response -> promise.resolve(response.token()))
+          .addOnFailureListener(e -> promise.reject("ATTESTATION_ERROR", e.getMessage(), e));
+    } catch (Throwable t) {
+      promise.reject("ATTESTATION_ERROR", "Play Integrity API unavailable: " + t.getMessage(), t);
+    }
   }
 
   @Override

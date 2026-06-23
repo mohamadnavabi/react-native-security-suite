@@ -15,7 +15,7 @@ struct JWSGenerator {
             )
         }
         switch value {
-        case "HS256", "HS384", "HS512":
+        case "HS256", "HS384", "HS512", "ES256", "EdDSA":
             return value
         default:
             throw NSError(
@@ -24,6 +24,58 @@ struct JWSGenerator {
                 userInfo: [NSLocalizedDescriptionKey: "Unsupported JWS algorithm: \(value)"]
             )
         }
+    }
+
+    // ─── Asymmetric signing ────────────────────────────────────────────────
+
+    static func generateAsymmetric(
+        payloadString: String,
+        privateKeyBase64: String,
+        algorithm: String,
+        headers: [String: Any]?,
+        detached: Bool
+    ) throws -> String {
+        let alg = try validateAlgorithm(algorithm)
+        guard alg == "ES256" || alg == "EdDSA" else {
+            throw NSError(domain: "JWS", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Expected asymmetric algorithm (ES256 or EdDSA), got: \(alg)"
+            ])
+        }
+
+        guard let privateKeyData = Data(base64Encoded: privateKeyBase64) else {
+            throw NSError(domain: "JWS", code: 8, userInfo: [
+                NSLocalizedDescriptionKey: "Invalid base64-encoded private key"
+            ])
+        }
+
+        let normalizedHeaders = headers ?? [:]
+        let protectedHeader = try buildProtectedHeader(algorithm: alg, headers: normalizedHeaders)
+        let encodedProtectedHeader = base64URLEncode(protectedHeader)
+        let encodedPayload = encodePayload(payloadString)
+        let signingInput = buildSigningInput(
+            encodedProtectedHeader: encodedProtectedHeader,
+            encodedPayload: encodedPayload
+        )
+        let signingData = Data(signingInput.utf8)
+
+        let signature: Data
+        switch alg {
+        case "ES256":
+            signature = try EcdsaSigner.sign(message: signingData, privateKeyDer: privateKeyData)
+        case "EdDSA":
+            signature = try Ed25519Signer.sign(message: signingData, privateKeyRaw: privateKeyData)
+        default:
+            throw NSError(domain: "JWS", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Unsupported asymmetric algorithm: \(alg)"
+            ])
+        }
+
+        return formatCompactJws(
+            encodedProtectedHeader: encodedProtectedHeader,
+            encodedPayload: encodedPayload,
+            encodedSignature: base64URLEncode(signature),
+            detached: detached
+        )
     }
 
     static func validateHeaderKey(_ key: String) throws {

@@ -20,7 +20,10 @@ import {
 export * from './SecureView';
 export type {
   GenerateJWSOptions,
+  GenerateAsymmetricJWSOptions,
   JwsAlgorithm,
+  AsymmetricJwsAlgorithm,
+  SymmetricJwsAlgorithm,
   JwsFetchOptions,
   JwsHeaderValue,
   JwsHeaders,
@@ -53,6 +56,7 @@ export {
   KeyExchange,
   Encryption,
   Signatures,
+  Random,
 } from './crypto';
 export type {
   HashAlgorithm,
@@ -63,6 +67,32 @@ export type {
   KeyExchangeComputeParams,
 } from './crypto';
 export { SecuritySuite } from './securitySuite';
+
+// ─── New modules ──────────────────────────────────────────────────────────────
+export { ClipboardGuard } from './clipboard';
+export type { ClipboardGuardOptions } from './clipboard';
+
+export { ThreatMonitor } from './monitoring';
+export type { ThreatMonitorOptions, ThreatMonitorHandle } from './monitoring';
+
+export { NetworkSecurity } from './network';
+export type { PinningConfig, NetworkFetchOptions } from './network';
+
+export { Storage } from './storage';
+export type {
+  SecureStorageOptions,
+  BiometricOptions,
+  KeyMeta,
+} from './storage';
+
+export { DeviceAttestation } from './attestation';
+
+export {
+  BackgroundProtection,
+  ScreenSecurity,
+  useBackgroundProtection,
+} from './screen';
+export type { BackgroundProtectionOptions } from './screen';
 export type {
   SecuritySuiteInitConfig,
   SecuritySuiteBehaviorConfig,
@@ -85,7 +115,20 @@ export type {
   SecurityReport,
   RiskLevel,
   BuildType,
+  AttestationResult,
+  AttestationAssertion,
+  ThreatEvent,
 } from './types/detection';
+
+export { toNativeAsymmetricJWSOptions, isAsymmetricAlgorithm } from './jws';
+
+export const generateAsymmetricJWS = (
+  options: import('./jws').GenerateAsymmetricJWSOptions
+): Promise<string> => {
+  const { toNativeAsymmetricJWSOptions: toNative } = require('./jws');
+  const native = require('./native/bridge').getNativeModule();
+  return native.generateAsymmetricJWS(toNative(options));
+};
 
 /** @deprecated Use `JwsHeaders` (optional `Record<string, JwsHeaderValue>`) instead. */
 export interface LegacyJwsHeaders {

@@ -1,4 +1,6 @@
-export type JwsAlgorithm = 'HS256' | 'HS384' | 'HS512';
+export type SymmetricJwsAlgorithm = 'HS256' | 'HS384' | 'HS512';
+export type AsymmetricJwsAlgorithm = 'ES256' | 'EdDSA';
+export type JwsAlgorithm = SymmetricJwsAlgorithm | AsymmetricJwsAlgorithm;
 
 export type JwsPayload =
   | string
@@ -17,7 +19,20 @@ const SUPPORTED_ALGORITHMS: readonly JwsAlgorithm[] = [
   'HS256',
   'HS384',
   'HS512',
+  'ES256',
+  'EdDSA',
 ];
+
+const ASYMMETRIC_ALGORITHMS: readonly AsymmetricJwsAlgorithm[] = [
+  'ES256',
+  'EdDSA',
+];
+
+export function isAsymmetricAlgorithm(
+  alg: string
+): alg is AsymmetricJwsAlgorithm {
+  return ASYMMETRIC_ALGORITHMS.includes(alg as AsymmetricJwsAlgorithm);
+}
 
 const SAFE_HEADER_KEY = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
@@ -212,4 +227,49 @@ export function assertCompactJwsShape(jws: string): void {
       `Invalid compact JWS: expected 3 segments, got ${segments.length}`
     );
   }
+}
+
+// ─── Asymmetric JWS (ES256 / EdDSA) ─────────────────────────────────────────
+
+export interface GenerateAsymmetricJWSOptions {
+  algorithm: AsymmetricJwsAlgorithm;
+  /** Base64-encoded private key (DER for ES256, raw 32 bytes for EdDSA). */
+  privateKey: string;
+  headers?: JwsHeaders;
+  payload?: JwsPayload;
+  detached?: boolean;
+}
+
+export interface NativeAsymmetricJWSOptions {
+  algorithm: AsymmetricJwsAlgorithm;
+  privateKey: string;
+  payload: string;
+  headers: JwsHeaders;
+  detached: boolean;
+}
+
+export function toNativeAsymmetricJWSOptions(
+  options: GenerateAsymmetricJWSOptions
+): NativeAsymmetricJWSOptions {
+  const privateKey = options.privateKey?.trim();
+  if (!privateKey) {
+    throw new Error(
+      'Asymmetric JWS requires a non-empty privateKey (base64-encoded)'
+    );
+  }
+  const algorithm = options.algorithm;
+  if (!isAsymmetricAlgorithm(algorithm)) {
+    throw new Error(
+      `Expected asymmetric algorithm (ES256 or EdDSA), got: ${algorithm}`
+    );
+  }
+  const headers = validateJwsHeaders(options.headers);
+  const payload = normalizeJwsPayload(options.payload);
+  return {
+    algorithm,
+    privateKey,
+    payload,
+    headers: { ...headers, alg: algorithm },
+    detached: options.detached ?? false,
+  };
 }

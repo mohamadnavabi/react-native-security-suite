@@ -2,6 +2,8 @@ import Foundation
 import CryptoKit
 import Security
 import UIKit
+import LocalAuthentication
+import DeviceCheck
 import IOSSecuritySuite
 
 @objc(SecuritySuite)
@@ -1028,5 +1030,270 @@ class SecuritySuite: NSObject {
         } catch {
             reject("CRYPTO_VERIFY_ERROR", error.localizedDescription, error)
         }
+    }
+
+    // ─── CSPRNG ───────────────────────────────────────────────────────────────
+
+    @objc(cryptoRandomBytes:withResolver:withRejecter:)
+    func cryptoRandomBytes(
+        count: Int,
+        resolve: RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        do {
+            resolve(try randomBytes(count: count).base64EncodedString())
+        } catch {
+            reject("CRYPTO_RANDOM_ERROR", error.localizedDescription, error)
+        }
+    }
+
+    // ─── Asymmetric JWS ───────────────────────────────────────────────────────
+
+    @objc(generateAsymmetricJWS:withResolver:withRejecter:)
+    func generateAsymmetricJWS(
+        options: NSDictionary,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        guard let privateKey = options["privateKey"] as? String, !privateKey.isEmpty else {
+            reject("JWS_ERROR", "privateKey is required", nil)
+            return
+        }
+        guard let algorithm = options["algorithm"] as? String else {
+            reject("JWS_ERROR", "algorithm is required", nil)
+            return
+        }
+
+        let payloadString: String
+        if let p = options["payload"] as? String {
+            payloadString = p
+        } else if options["payload"] is NSNull || options["payload"] == nil {
+            payloadString = ""
+        } else {
+            reject("JWS_ERROR", "payload must be a string", nil)
+            return
+        }
+
+        let headers = options["headers"] as? [String: Any]
+        let detached = options["detached"] as? Bool ?? false
+
+        do {
+            let jws = try JWSGenerator.generateAsymmetric(
+                payloadString: payloadString,
+                privateKeyBase64: privateKey,
+                algorithm: algorithm,
+                headers: headers,
+                detached: detached
+            )
+            resolve(jws)
+        } catch {
+            reject("JWS_ERROR", error.localizedDescription, error)
+        }
+    }
+
+    // ─── Biometric SecureStorage ──────────────────────────────────────────────
+
+    @objc(secureStorageSetItemBiometric:withValue:withOptions:withResolver:withRejecter:)
+    func secureStorageSetItemBiometric(
+        key: NSString,
+        value: NSString,
+        options: NSDictionary,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        let prompt = options["prompt"] as? String ?? "Authenticate to save"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let context = LAContext()
+            var error: NSError?
+            guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+                DispatchQueue.main.async {
+                    reject("BIOMETRIC_UNAVAILABLE", error?.localizedDescription ?? "Biometrics unavailable", error)
+                }
+                return
+            }
+            context.evaluatePolicy(
+                .deviceOwnerAuthenticationWithBiometrics,
+                localizedReason: prompt
+            ) { success, authError in
+                DispatchQueue.main.async {
+                    if success {
+                        do {
+                            try SecureStorageNative.shared.setItem(key: key as String, value: value as String)
+                            resolve(nil)
+                        } catch {
+                            reject("SECURE_STORAGE_ERROR", error.localizedDescription, error)
+                        }
+                    } else {
+                        reject("BIOMETRIC_AUTH_FAILED", authError?.localizedDescription ?? "Biometric authentication failed", authError as NSError?)
+                    }
+                }
+            }
+        }
+    }
+
+    @objc(secureStorageGetItemBiometric:withOptions:withResolver:withRejecter:)
+    func secureStorageGetItemBiometric(
+        key: NSString,
+        options: NSDictionary,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        let prompt = options["prompt"] as? String ?? "Authenticate to read"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let context = LAContext()
+            var error: NSError?
+            guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+                DispatchQueue.main.async {
+                    reject("BIOMETRIC_UNAVAILABLE", error?.localizedDescription ?? "Biometrics unavailable", error)
+                }
+                return
+            }
+            context.evaluatePolicy(
+                .deviceOwnerAuthenticationWithBiometrics,
+                localizedReason: prompt
+            ) { success, authError in
+                DispatchQueue.main.async {
+                    if success {
+                        do {
+                            resolve(try SecureStorageNative.shared.getItem(key: key as String))
+                        } catch {
+                            reject("SECURE_STORAGE_ERROR", error.localizedDescription, error)
+                        }
+                    } else {
+                        reject("BIOMETRIC_AUTH_FAILED", authError?.localizedDescription ?? "Biometric authentication failed", authError as NSError?)
+                    }
+                }
+            }
+        }
+    }
+
+    @objc(secureStorageBiometricIsAvailable:withRejecter:)
+    func secureStorageBiometricIsAvailable(
+        resolve: RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        let context = LAContext()
+        var error: NSError?
+        resolve(context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error))
+    }
+
+    // ─── Background / window security ─────────────────────────────────────────
+
+    @objc(screenSetWindowSecure:withResolver:withRejecter:)
+    func screenSetWindowSecure(
+        enabled: Bool,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        DispatchQueue.main.async {
+            guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else {
+                resolve(nil)
+                return
+            }
+            let tag = 0x52535357 // 'RSSW'
+            if enabled {
+                if window.viewWithTag(tag) == nil {
+                    let blurEffect = UIBlurEffect(style: .regular)
+                    let blurView = UIVisualEffectView(effect: blurEffect)
+                    blurView.frame = window.bounds
+                    blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                    blurView.tag = tag
+                    window.addSubview(blurView)
+                }
+            } else {
+                window.viewWithTag(tag)?.removeFromSuperview()
+            }
+            resolve(nil)
+        }
+    }
+
+    // ─── Device Attestation ───────────────────────────────────────────────────
+
+    @objc(deviceAttestationIsSupported:withRejecter:)
+    func deviceAttestationIsSupported(
+        resolve: RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        if #available(iOS 14.0, *) {
+            resolve(DCAppAttestService.shared.isSupported)
+        } else {
+            resolve(false)
+        }
+    }
+
+    @objc(deviceAttestationGenerateKey:withRejecter:)
+    func deviceAttestationGenerateKey(
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: @escaping RCTPromiseRejectBlock
+    ) {
+        if #available(iOS 14.0, *) {
+            DCAppAttestService.shared.generateKey { keyId, error in
+                if let error {
+                    reject("ATTESTATION_ERROR", error.localizedDescription, error)
+                } else {
+                    resolve(keyId ?? "")
+                }
+            }
+        } else {
+            reject("ATTESTATION_UNSUPPORTED", "App Attest requires iOS 14 or later", nil)
+        }
+    }
+
+    @objc(deviceAttestationAttestKey:withClientDataHash:withResolver:withRejecter:)
+    func deviceAttestationAttestKey(
+        keyId: NSString,
+        clientDataHash: NSString,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: @escaping RCTPromiseRejectBlock
+    ) {
+        if #available(iOS 14.0, *) {
+            guard let hashData = Data(base64Encoded: clientDataHash as String) else {
+                reject("ATTESTATION_ERROR", "clientDataHash must be valid base64", nil)
+                return
+            }
+            DCAppAttestService.shared.attestKey(keyId as String, clientDataHash: hashData) { attestation, error in
+                if let error {
+                    reject("ATTESTATION_ERROR", error.localizedDescription, error)
+                } else {
+                    resolve(attestation?.base64EncodedString() ?? "")
+                }
+            }
+        } else {
+            reject("ATTESTATION_UNSUPPORTED", "App Attest requires iOS 14 or later", nil)
+        }
+    }
+
+    @objc(deviceAttestationGenerateAssertion:withClientDataHash:withResolver:withRejecter:)
+    func deviceAttestationGenerateAssertion(
+        keyId: NSString,
+        clientDataHash: NSString,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: @escaping RCTPromiseRejectBlock
+    ) {
+        if #available(iOS 14.0, *) {
+            guard let hashData = Data(base64Encoded: clientDataHash as String) else {
+                reject("ATTESTATION_ERROR", "clientDataHash must be valid base64", nil)
+                return
+            }
+            DCAppAttestService.shared.generateAssertion(keyId as String, clientDataHash: hashData) { assertion, error in
+                if let error {
+                    reject("ATTESTATION_ERROR", error.localizedDescription, error)
+                } else {
+                    resolve(assertion?.base64EncodedString() ?? "")
+                }
+            }
+        } else {
+            reject("ATTESTATION_UNSUPPORTED", "App Attest requires iOS 14 or later", nil)
+        }
+    }
+
+    @objc(deviceAttestationGetPlayIntegrityToken:withResolver:withRejecter:)
+    func deviceAttestationGetPlayIntegrityToken(
+        nonce: NSString,
+        resolve: RCTPromiseResolveBlock,
+        reject: RCTPromiseRejectBlock
+    ) {
+        // Play Integrity is Android-only; this is a no-op stub on iOS.
+        resolve("")
     }
 }

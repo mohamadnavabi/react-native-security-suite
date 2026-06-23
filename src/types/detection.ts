@@ -44,3 +44,44 @@ export interface SecurityReport {
   riskScore: number;
   riskLevel: RiskLevel;
 }
+
+export interface AttestationResult {
+  /** Platform: 'app-attest' (iOS) | 'play-integrity' (Android) */
+  platform: 'app-attest' | 'play-integrity';
+  /** Base64-encoded attestation object for server-side verification. */
+  attestation: string;
+  /** Key identifier used for subsequent assertions (iOS) or nonce echo (Android). */
+  keyId?: string;
+}
+
+export interface AttestationAssertion {
+  /** Base64-encoded assertion for server-side verification. */
+  assertion: string;
+  /** The key identifier used to produce this assertion. */
+  keyId: string;
+}
+
+export interface BiometricOptions {
+  /** Prompt shown to the user during biometric authentication. */
+  prompt?: string;
+  /** Android: subtitle for the biometric dialog. */
+  subtitle?: string;
+}
+
+export interface SecureStorageOptions extends BiometricOptions {
+  /** If true, reading this item requires biometric authentication. Default: false */
+  requireBiometric?: boolean;
+}
+
+export interface ThreatEvent {
+  type:
+    | 'root'
+    | 'jailbreak'
+    | 'emulator'
+    | 'debugger'
+    | 'hooking'
+    | 'tamper'
+    | 'risk-threshold';
+  report: SecurityReport;
+  timestamp: number;
+}

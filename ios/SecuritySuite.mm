@@ -75,6 +75,28 @@ RCT_EXTERN_METHOD(cryptoSignEcdsa:(NSString)message withPrivateKey:(NSString)pri
 
 RCT_EXTERN_METHOD(cryptoVerifyEcdsa:(NSString)message withSignature:(NSString)signature withPublicKey:(NSString)publicKey withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(cryptoRandomBytes:(NSInteger)count withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(generateAsymmetricJWS:(NSDictionary)options withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(secureStorageSetItemBiometric:(NSString)key withValue:(NSString)value withOptions:(NSDictionary)options withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(secureStorageGetItemBiometric:(NSString)key withOptions:(NSDictionary)options withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(secureStorageBiometricIsAvailable:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(screenSetWindowSecure:(BOOL)enabled withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(deviceAttestationIsSupported:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(deviceAttestationGenerateKey:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(deviceAttestationAttestKey:(NSString)keyId withClientDataHash:(NSString)clientDataHash withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(deviceAttestationGenerateAssertion:(NSString)keyId withClientDataHash:(NSString)clientDataHash withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(deviceAttestationGetPlayIntegrityToken:(NSString)nonce withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
 + (BOOL)requiresMainQueueSetup
 {
   return NO;

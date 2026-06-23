@@ -91,3 +91,35 @@ export { KDF } from './kdf';
 export { KeyExchange } from './key_exchange';
 export { Encryption } from './encryption';
 export { Signatures } from './signatures';
+
+// ─── CSPRNG ──────────────────────────────────────────────────────────────────
+
+export const Random = {
+  /**
+   * Generate `count` cryptographically secure random bytes via the platform
+   * hardware RNG. Returns a base64-encoded string.
+   */
+  randomBytes(count: number): Promise<string> {
+    if (!Number.isInteger(count) || count < 1 || count > 65536) {
+      return Promise.reject(
+        new Error('count must be an integer between 1 and 65536')
+      );
+    }
+    return getNativeModule().cryptoRandomBytes(count);
+  },
+
+  /**
+   * Generate a cryptographically secure random UUID v4.
+   */
+  async randomUUID(): Promise<string> {
+    const b64 = await Random.randomBytes(16);
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    // UUID v4: force version nibble to 4 and variant bits to 0b10xxxxxx
+    bytes[6] = ((bytes[6]! >>> 0) % 16) + 0x40; // eslint-disable-line no-bitwise
+    bytes[8] = ((bytes[8]! >>> 0) % 64) + 0x80; // eslint-disable-line no-bitwise
+    const hex = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  },
+};

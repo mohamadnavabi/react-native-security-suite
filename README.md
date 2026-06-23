@@ -1,702 +1,883 @@
-# React Native Security Suite 🔒
+# React Native Security Suite
 
 [![npm version](https://badge.fury.io/js/react-native-security-suite.svg)](https://www.npmjs.com/package/react-native-security-suite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://img.shields.io/npm/dm/react-native-security-suite.svg)](https://www.npmjs.com/package/react-native-security-suite)
 
-**Comprehensive security solutions for React Native applications** — Protect your mobile apps with root/jailbreak detection, SSL certificate pinning, RFC 7515 JWS request signing, hardware-backed secure storage, configurable ECDH key exchange, screenshot protection, and network monitoring.
+Comprehensive mobile security for React Native — detection, cryptography, secure storage, network protection, and device attestation in a single package.
 
 <div style="display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 20px;">
 <img src="https://raw.githubusercontent.com/mohamadnavabi/react-native-security-suite/master/pulse.gif" alt="iOS Pulse Network Monitor" width="200" />
 <img src="https://raw.githubusercontent.com/mohamadnavabi/react-native-security-suite/master/chucker.gif" alt="Android Chucker Network Monitor" width="200" />
 </div>
 
-## 🚀 Features
+---
 
-### Security Detection & Protection
+## Contents
 
-- **Root Detection**: Detect rooted Android devices
-- **Jailbreak Detection**: Detect jailbroken iOS devices
-- **Emulator/Simulator Detection**: Heuristic checks for Android emulators and the iOS Simulator
-- **Debugger Detection**: Detect debuggers attached to the app process
-- **Hooking Detection**: Detect Frida, Xposed/LSPosed, Substrate, and Magisk instrumentation
-- **Runtime Protection**: Enforce policies that throw structured `SecurityError` on threats
-- **Screenshot Protection**: Prevent screenshots and screen recordings
-- **SSL Certificate Pinning**: Secure network communications
-- **Public Key Pinning**: Advanced certificate validation
+- [Features](#features)
+- [Platform Support](#platform-support)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Security Detection](#security-detection)
+- [Threat Monitoring](#threat-monitoring)
+- [Cryptography](#cryptography)
+- [JWS Request Signing](#jws-request-signing)
+- [Secure Storage](#secure-storage)
+- [Network Security](#network-security)
+- [Screen Protection](#screen-protection)
+- [Clipboard Protection](#clipboard-protection)
+- [Device Attestation](#device-attestation)
+- [API Reference](#api-reference)
+- [Security Best Practices](#security-best-practices)
+- [Troubleshooting](#troubleshooting)
 
-### Data Security & Encryption
+---
 
-- **Secure Storage**: Hardware-backed encrypted storage (Keychain on iOS, EncryptedSharedPreferences on Android)
-- **Diffie-Hellman Key Exchange**: App-defined `CryptoOptions` only — **no algorithm defaults ship with this package**
-- **Shared-Key Encryption**: AES-GCM encrypt/decrypt using a derived shared secret
-- **Obfuscation**: Local string obfuscation with an explicit secret (not for credentials at rest)
+## Features
 
-### Network Security & Monitoring
+**Detection & Runtime Protection**
+- Root and jailbreak detection (Android RootBeer + IOSSecuritySuite)
+- Emulator/simulator detection with environment indicators
+- Debugger detection (`P_TRACED`, TracerPid)
+- Hooking detection — Frida, Xposed/LSPosed, Substrate, Magisk
+- Continuous threat monitoring with configurable callbacks
+- Composite risk scoring (`low` / `medium` / `high`)
+- `SecuritySuite.protect()` — throws `SecurityError` on policy violations
 
-- **JWS Request Signing (RFC 7515)**: HMAC-signed compact JWS tokens for `fetch` requests (HS256/HS384/HS512)
-- **SSL Certificate Pinning**: Pin SPKI SHA-256 hashes with domain allowlists
-- **Network Logger**: Built-in request/response logging
-- **Android Chucker Integration**: Advanced network debugging
-- **iOS Pulse Integration**: Network monitoring for iOS
+**Cryptography**
+- ECDH (P-256) and X25519 key exchange
+- AES-256-GCM encryption/decryption
+- HKDF key derivation
+- Ed25519 and ECDSA P-256 digital signatures
+- SHA-256 / SHA-512 hashing
+- CSPRNG — `Random.randomBytes()` and `Random.randomUUID()`
 
-## 📱 Supported Platforms
+**JWS Request Signing (RFC 7515)**
+- Symmetric: HS256, HS384, HS512
+- Asymmetric: ES256 (ECDSA P-256), EdDSA (Ed25519)
+- Detached compact JWS for body signing
+- Auto-signing on `fetch` with configurable header name
 
-- ✅ **Android** (API 21+)
-- ✅ **iOS** (iOS 11.0+)
-- ✅ **React Native** (0.60+)
+**Secure Storage**
+- Hardware-backed: Keychain (iOS) / EncryptedSharedPreferences + Android Keystore (Android)
+- Biometric-gated read/write (Face ID, Touch ID, Fingerprint)
+- Key expiry — `setItemWithExpiry` / `getItemIfValid`
+- Key rotation with version tracking — `rotateItem`
 
-## 🛠 Installation
+**Network Security**
+- SSL/TLS certificate pinning (SPKI SHA-256 hashes)
+- Global `fetch` interceptor for zero-config pinning
+- `createPinnedFetch()` — per-instance pinned transport
+- Network request logging (Chucker on Android, Pulse on iOS)
 
-### Using Yarn
+**Screen Protection**
+- `SecureView` — blocks screenshots and screen recordings per-view
+- `BackgroundProtection` component + `useBackgroundProtection` hook — privacy overlay in app switcher
+- `ScreenSecurity.setWindowSecure()` — native window-level `FLAG_SECURE` (Android) / blur overlay (iOS)
+
+**Clipboard Protection**
+- `ClipboardGuard.copy(text, { clearAfterMs })` — auto-clear after timeout
+- Manual clear and cancel-auto-clear controls
+
+**Device Attestation**
+- iOS App Attest (DCAppAttestService, iOS 14+)
+- Android Play Integrity API
+- Unified `DeviceAttestation.attestDevice(challengeHash)` for both platforms
+
+---
+
+## Platform Support
+
+| Platform | Minimum Version |
+|----------|----------------|
+| Android  | API 21 (Android 5.0) |
+| iOS      | iOS 13.0 |
+| React Native | 0.60+ |
+
+Biometric storage requires Android API 28+ (Android 9). Device Attestation requires iOS 14+ (App Attest) or Google Play Services (Play Integrity).
+
+---
+
+## Installation
 
 ```bash
+# yarn
 yarn add react-native-security-suite
-```
 
-### Using NPM
-
-```bash
+# npm
 npm install react-native-security-suite
 ```
-
-### iOS Setup
 
 ```bash
 cd ios && pod install
 ```
 
-## 🔐 Crypto profile policy
+**Optional peer dependency** — for clipboard support install:
 
-This library is **open source**. Anything baked into the package — default algorithms, key sizes, cipher names — is visible to anyone who reads the source or reverse-engineers an app.
+```bash
+yarn add @react-native-clipboard/clipboard
+```
 
-**Therefore:**
+**Android — Play Integrity** (opt-in): add to your app's `build.gradle`:
 
-- There are **no** `DEFAULT_CRYPTO_OPTIONS`, `DEFAULT_KEY_PROFILE`, or native `CryptoConfig.defaults()`.
-- Every crypto call (`getPublicKey`, `establishSharedKey`, `encrypt`, `decrypt`) **requires** a `CryptoOptions` object from **your** application.
-- Define `cryptoOptions` once in your app (or load from remote config) and reuse the same object for the full key-exchange → encrypt → login flow.
-- The profile **must match your backend** exactly. Mismatched options produce wrong shared keys or undecryptable payloads.
+```gradle
+implementation "com.google.android.play:integrity:1.3.0"
+```
 
-Hiding algorithm choice in the library does not add real security — ECDH and AES-GCM are standard. Protection comes from **ephemeral key agreement**, **native key storage**, and **request signing**, not from obscuring cipher names in npm.
+**iOS — App Attest** (opt-in): add the "App Attest" capability in your Apple Developer account and target entitlements.
+
+---
+
+## Quick Start
 
 ```typescript
-// Define in YOUR app — not in react-native-security-suite
-import type { CryptoOptions } from 'react-native-security-suite';
+import { SecuritySuite } from 'react-native-security-suite';
 
-export const cryptoOptions: CryptoOptions = {
-  keyAgreementAlgorithm: 'X25519',
-  keyType: 'OKP',
-  encryptionKeyAlgorithm: 'AES',
-  hmacAlgorithm: 'HmacSHA256',
-  cipher: 'AES-GCM',
-  tagLength: 128,
-  ivLength: 12,
-};
+await SecuritySuite.initialize({
+  crypto: {
+    keyAgreementAlgorithm: 'X25519',
+    keyType: 'OKP',
+    encryptionKeyAlgorithm: 'AES',
+    hmacAlgorithm: 'HmacSHA256',
+    cipher: 'AES/GCM/NoPadding',
+    tagLength: 128,
+    ivLength: 12,
+  },
+  hkdf: {
+    salt: 'your-app-specific-salt-min-16-chars',
+    encryptionInfo: 'your-app/encryption',
+    hmacInfo: 'your-app/hmac',
+  },
+});
+
+// Block compromised environments at startup
+await SecuritySuite.protect({
+  blockEmulator: true,
+  blockDebugger: true,
+  blockHooking: true,
+  blockRoot: false,
+});
 ```
 
-## 📁 Project Structure
+---
 
-The public API is exported from `src/index.tsx`. JWS validation and normalization live in a dedicated module so TypeScript and native code share the same contract.
+## Security Detection
 
-```
-src/
-├── index.tsx          # Public API (fetch, crypto, SecureStorage, SecureView)
-├── jws.ts             # JWS types, validation, payload normalization
-├── SecureView.tsx     # Screenshot-protected view component
-└── helpers.ts         # Internal utilities
-
-android/src/main/java/com/securitysuite/
-├── SecureStorageNative.java # EncryptedSharedPreferences + Android Keystore
-├── JWSGenerator.java      # RFC 7515 compact JWS (sign + verify)
-├── JwsFetchPayload.java   # Default fetch signing payload builder
-├── SecuritySuiteModule.java
-└── Sslpinning.java        # fetch + SSL pinning + JWS header injection
-
-ios/
-├── SecureStorageNative.swift # Keychain-backed secure storage
-├── KeychainHelper.swift      # Keychain read/write/query helpers
-├── JWSGenerator.swift     # RFC 7515 compact JWS (sign + verify)
-├── SecuritySuite.swift    # Native module + fetch
-└── SslPinning.swift
-```
-
-**JWS flow:** JavaScript validates options in `src/jws.ts` (secret, algorithm, headers, payload shape), normalizes the payload to the exact UTF-8 signing string, then calls native `generateJWS` on Android/iOS. For `fetch`, native code builds the signing payload when `jws.payload` is omitted, signs it, and attaches the compact token to the request header.
-
-## 📖 Usage Examples
-
-### 1. Root/Jailbreak Detection
-
-Detect compromised devices to protect your app from security risks:
-
-```javascript
-import { deviceHasSecurityRisk } from 'react-native-security-suite';
-
-const checkDeviceSecurity = async () => {
-  const isRiskyDevice = await deviceHasSecurityRisk();
-
-  if (isRiskyDevice) {
-    console.log('⚠️ Device is rooted/jailbroken - Security risk detected');
-    // Handle security risk - show warning or restrict features
-  } else {
-    console.log('✅ Device security check passed');
-  }
-};
-```
-
-### 2. Emulator, Debugger, and Hooking Detection
-
-Run native runtime and environment checks, then optionally enforce a protection policy at app startup:
+### One-shot report
 
 ```typescript
-import {
-  SecuritySuite,
-  RuntimeSecurity,
-  DeviceSecurity,
-  SecurityError,
-  isSecurityError,
-} from 'react-native-security-suite';
+import { SecuritySuite } from 'react-native-security-suite';
 
-// Advisory report with risk scoring
 const report = await SecuritySuite.getSecurityReport();
-console.log(report.riskLevel, report.runtime, report.device);
+// report.riskLevel: 'low' | 'medium' | 'high'
+// report.riskScore: 0–100
+// report.device.isRooted, .isJailbroken, .isEmulator, .isSimulator
+// report.runtime.debuggerAttached, .fridaDetected, .xposedDetected, …
+// report.app.validSignature, .tampered, .buildType
+```
 
-// Targeted checks
-const isSimulator = await DeviceSecurity.isEmulator();
-const debuggerAttached = await RuntimeSecurity.isDebuggerAttached();
-const hooked = await RuntimeSecurity.isHooked();
+### Targeted checks
 
-// Protection — throws SecurityError when a configured threat is detected
+```typescript
+import { DeviceSecurity, RuntimeSecurity, AppIntegrity } from 'react-native-security-suite';
+
+const isCompromised = await DeviceSecurity.isCompromised();     // root / jailbreak
+const isEmulator   = await DeviceSecurity.isEmulator();
+const environment  = await DeviceSecurity.getEnvironment();     // { isEmulator, isSimulator, indicators }
+
+const isDebugged   = await RuntimeSecurity.isDebuggerAttached();
+const isHooked     = await RuntimeSecurity.isHooked();          // Frida / Xposed / Substrate / Magisk
+
+const integrity    = await AppIntegrity.verify();               // { validSignature, tampered, buildType, … }
+```
+
+### Policy enforcement
+
+`protect()` throws `SecurityError` when a violation is detected.
+
+```typescript
+import { SecuritySuite, SecurityError, isSecurityError } from 'react-native-security-suite';
+
 try {
   await SecuritySuite.protect({
     blockEmulator: true,
     blockDebugger: true,
     blockHooking: true,
-    blockRoot: false, // opt in to root/jailbreak blocking
+    blockRoot: true,
+    minRiskLevel: 'high', // also throw when riskLevel >= 'high'
   });
-} catch (error) {
-  if (isSecurityError(error)) {
-    // error.code: EMULATOR_DETECTED | DEBUGGER_DETECTED | FRIDA_DETECTED | ...
-    console.warn('Blocked startup:', error.code, error.details);
+} catch (err) {
+  if (isSecurityError(err)) {
+    // err.code: 'EMULATOR_DETECTED' | 'DEBUGGER_DETECTED' | 'FRIDA_DETECTED' | …
+    console.warn('Security violation:', err.code, err.details);
   }
 }
-
-// Granular protection
-await DeviceSecurity.protectEnvironment();
-await RuntimeSecurity.protect({ blockDebugger: true, blockHooking: true });
 ```
 
-**Detection signals (native, heuristic):**
+**Detection signals:**
 
-| Category | Android | iOS |
-|----------|---------|-----|
-| Emulator/Simulator | Build props, QEMU, sensors, telephony, RootBeer | `TARGET_OS_SIMULATOR`, IOSSecuritySuite, `hw.model` |
-| Debugger | `Debug.isDebuggerConnected`, TracerPid | IOSSecuritySuite, `P_TRACED` sysctl |
-| Hooking | `/proc/self/maps`, Frida ports/threads/fds, Xposed, Magisk | Dyld insert env, loaded dylibs, Frida ports/paths, Substrate |
+| Signal | Android | iOS |
+|--------|---------|-----|
+| Root / Jailbreak | RootBeer (20+ checks) | IOSSecuritySuite |
+| Emulator | Build props, QEMU, sensors, telephony | `TARGET_OS_SIMULATOR`, hw.model, IOSSecuritySuite |
+| Debugger | `Debug.isDebuggerConnected`, TracerPid | `P_TRACED` sysctl, IOSSecuritySuite |
+| Hooking | `/proc/self/maps`, Frida ports/threads, Xposed, Magisk | Dyld inserts, loaded dylibs, Frida paths, Substrate |
 
-Client-side checks are advisory. Combine with server-side policy for enforcement.
+---
 
-### 3. Screenshot Protection
+## Threat Monitoring
 
-Protect sensitive content from screenshots and screen recordings:
-
-```javascript
-import { SecureView } from 'react-native-security-suite';
-
-const SensitiveScreen = () => {
-  return (
-    <View style={styles.container}>
-      <SecureView style={styles.secureContainer}>
-        <Text style={styles.sensitiveText}>
-          🔒 This content is protected from screenshots
-        </Text>
-        <TextInput
-          placeholder="Enter sensitive information"
-          secureTextEntry={true}
-        />
-      </SecureView>
-    </View>
-  );
-};
-```
-
-### 4. Obfuscation (local only)
-
-Obfuscation requires an explicit secret and is intended for non-sensitive local encoding — not for credentials, tokens, or PII at rest. Use `SecureStorage` for persisted secrets.
-
-```javascript
-import { obfuscate, deobfuscate } from 'react-native-security-suite';
-
-const encoded = await obfuscate('local-cache-value', 'app-specific-secret');
-const decoded = await deobfuscate(encoded, 'app-specific-secret');
-```
-
-> `encrypt()` / `decrypt()` remain available but are deprecated. They now require an explicit `secretKey` and should be replaced with `obfuscate()` / `deobfuscate()` or `SecureStorage`.
-
-### 5. Secure Storage
-
-Store sensitive data in hardware-backed encrypted storage. On **iOS**, values are stored in the Keychain (`kSecClassGenericPassword`). On **Android**, values are encrypted with **EncryptedSharedPreferences** backed by Android Keystore (`AES256_GCM`).
-
-```javascript
-import { SecureStorage } from 'react-native-security-suite';
-
-const handleSecureStorage = async () => {
-  try {
-    // Store encrypted data
-    await SecureStorage.setItem(
-      'userToken',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-    );
-    await SecureStorage.setItem(
-      'userCredentials',
-      JSON.stringify({
-        username: 'user@example.com',
-        password: 'encrypted_password',
-      })
-    );
-
-    // Retrieve data
-    const token = await SecureStorage.getItem('userToken');
-    const credentials = await SecureStorage.getItem('userCredentials');
-    const allKeys = await SecureStorage.getAllKeys();
-
-    console.log('Retrieved token:', token);
-    console.log('Retrieved credentials:', JSON.parse(credentials));
-    console.log('Stored keys:', allKeys);
-
-    // Remove sensitive data
-    await SecureStorage.removeItem('userToken');
-
-    // Clear all secure storage entries
-    await SecureStorage.clear();
-  } catch (error) {
-    console.error('Secure storage error:', error);
-  }
-};
-```
-
-#### Security Guarantee
-
-`SecureStorage` no longer uses AsyncStorage or any JavaScript-side persistence. All keys and values are:
-
-- **Encrypted at rest** — AES-GCM (Android) / Keychain-protected blobs (iOS)
-- **Hardware-backed where available** — Android Keystore master key; iOS Keychain with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
-- **System-managed keys** — No hardcoded salts or encryption keys in app code; the OS generates and protects master keys
-
-If a native read/write fails (for example, KeyStore initialization errors on Android), the Promise rejects with a clear `Secure storage operation failed` error.
-
-### 6. Diffie-Hellman Key Exchange
-
-Derive a shared encryption key from the client and server public keys.
-
-> **No package defaults.** See [Crypto profile policy](#-crypto-profile-policy). Pass `cryptoOptions` on every call; omitting it throws before native code runs.
-
-Use **`Crypto.establishSharedKey()`** so the derived key stays in native memory. After key exchange, signed `fetch` requests can use **`keyId` + `requestId` only** — the derived HMAC key never leaves native code.
+Continuously poll for threats and react in real time.
 
 ```typescript
-import { Crypto, fetch, type CryptoOptions } from 'react-native-security-suite';
+import { ThreatMonitor } from 'react-native-security-suite';
+import type { ThreatEvent } from 'react-native-security-suite';
 
-// Import from your app config — do not expect defaults from this package
-import { cryptoOptions } from './cryptoConfig';
+const monitor = ThreatMonitor.start({
+  intervalMs: 30_000,       // poll every 30 s (default)
+  minRiskLevel: 'medium',   // only fire for medium or high risk (default)
+  runImmediately: true,     // run one check immediately on start (default)
+  onThreat: (event: ThreatEvent) => {
+    // event.type: 'root' | 'jailbreak' | 'emulator' | 'debugger' | 'hooking' | 'tamper' | 'risk-threshold'
+    // event.report: SecurityReport
+    // event.timestamp: number
+    console.warn('Threat detected:', event.type);
+    // e.g. navigate to an error screen or sign the user out
+  },
+  onError: (err) => console.error('ThreatMonitor error:', err),
+});
 
-const handleSecureLogin = async (password: string, serverPublicKey: string, keyId: string) => {
-  const clientPublicKey = await Crypto.getPublicKey(cryptoOptions);
-  // ... send clientPublicKey to your key-exchange API ...
-
-  await Crypto.establishSharedKey(serverPublicKey, cryptoOptions);
-  const encryptedPassword = await Crypto.encrypt(password, cryptoOptions);
-
-  await fetch('https://api.example.com/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'user', password: encryptedPassword }),
-    keyId,
-    requestId: 'unique-request-id',
-    certificates: ['sha256/...'],
-    validDomains: ['api.example.com'],
-  });
-};
+// Later — e.g. on logout or unmount
+monitor.stop();
 ```
 
-**Legacy API** (returns the derived key to JavaScript — avoid in production):
+---
 
-```javascript
-import { getSharedKey } from 'react-native-security-suite';
-import { cryptoOptions } from './cryptoConfig';
+## Cryptography
 
-const sharedKeyBase64 = await getSharedKey(serverPublicKey, cryptoOptions);
-```
-
-#### Algorithm and length options
-
-| Option | Required | Allowed values | Description |
-|--------|----------|----------------|-------------|
-| `keyAgreementAlgorithm` | yes | `'X25519' \| 'ECDH'` | Key-agreement algorithm passed to native `KeyAgreement` |
-| `keyType` | yes* | `'OKP' \| 'EC'` | Key-factory algorithm for the server public key (`keyFactoryAlgorithm` alias) |
-| `encryptionKeyAlgorithm` | yes | `'AES-256' \| 'AES'` | Symmetric key algorithm for the derived encryption key |
-| `hmacAlgorithm` | yes* | `'HmacSHA256' \| 'HmacSHA384' \| 'HmacSHA512' \| 'HMAC-SHA-256' \| 'HMAC-SHA-384' \| 'HMAC-SHA-512'` | HMAC for HKDF and MAC key material (`hmacKeyAlgorithm` alias) |
-| `cipher` | yes* | `'AES-GCM' \| 'AES/GCM/NoPadding'` | Cipher transformation for encrypt/decrypt (`cipherTransformation` alias) |
-| `tagLength` | yes* | `number` (e.g. `128`) | GCM authentication tag length in **bits** (`gcmTagLength` alias) |
-| `ivLength` | yes* | `number` (e.g. `12`) | GCM IV/nonce length in **bytes** (`gcmIvLength` alias) |
-
-\*Provide via the preferred name or its deprecated alias (see [API Reference](#cryptooptions)).
-
-Use **JCA-style names** on both Android and iOS (e.g. `HmacSHA256`, not `HMAC-SHA-256`).
-
-**Example app config (`cryptoConfig.ts`):**
+### Key exchange + encryption
 
 ```typescript
-import type { CryptoOptions } from 'react-native-security-suite';
+import { KeyExchange, Encryption } from 'react-native-security-suite';
 
-export const cryptoOptions: CryptoOptions = {
-  keyAgreementAlgorithm: 'X25519',
-  keyType: 'OKP',
-  encryptionKeyAlgorithm: 'AES',
-  hmacAlgorithm: 'HmacSHA256',
-  cipher: 'AES/GCM/NoPadding',
-  tagLength: 128,
-  ivLength: 12,
-};
+// 1. Get client public key and send to server
+const clientPublicKey = await KeyExchange.getX25519PublicKey();
+// send clientPublicKey to your API …
+
+// 2. Server responds with its public key → derive shared keys
+const { encryptionKey, macKey } = await KeyExchange.x25519ComputeAndDeriveKeys({
+  serverPublicKey: serverPublicKeyBase64,
+  salt:            saltBase64,
+  encryptionInfo:  btoa('my-app/encryption'),
+  macInfo:         btoa('my-app/hmac'),
+  hmacAlgorithm:   'HmacSHA256',
+});
+
+// 3. Encrypt / decrypt
+const ciphertext = await Encryption.encryptAesGcm(plaintext, encryptionKey);
+const plaintext2 = await Encryption.decryptAesGcm(ciphertext, encryptionKey);
 ```
 
-**Alternate profile (ECDH / P-256):**
+ECDH (P-256) works the same way via `KeyExchange.getEcdhPublicKey()` and `KeyExchange.ecdhComputeAndDeriveKeys()`.
+
+### Hashing
 
 ```typescript
-import type { CryptoOptions } from 'react-native-security-suite';
+import { Hashing } from 'react-native-security-suite';
 
-const cryptoOptions: CryptoOptions = {
-  keyAgreementAlgorithm: 'HmacSHA256',
-  keyType: 'OKP',
-  encryptionKeyAlgorithm: 'AES-256',
-  hmacAlgorithm: 'HmacSHA256',
-  cipher: 'AES-GCM',
-  tagLength: 256,
-  ivLength: 12,
-};
+const sha256 = await Hashing.hash('message', 'SHA-256');
+const sha512 = await Hashing.hash('message', 'SHA-512');
 ```
 
-### 7. JWS Generation (RFC 7515)
+### Digital signatures
 
-Generate [RFC 7515](https://datatracker.ietf.org/doc/html/rfc7515) compact JWS tokens. Supported algorithms: **HS256**, **HS384**, **HS512**. An explicit `secret` is always required.
+```typescript
+import { Signatures } from 'react-native-security-suite';
 
-**How it works**
+// Ed25519
+const { privateKey, publicKey } = await Signatures.generateEd25519KeyPair();
+const signature = await Signatures.signEd25519('message', privateKey);
+const valid     = await Signatures.verifyEd25519('message', signature, publicKey);
 
-1. TypeScript (`src/jws.ts`) validates `secret`, `algorithm`, and custom headers.
-2. The payload is normalized to the exact UTF-8 string used for signing (objects/arrays are `JSON.stringify`'d; `undefined`/`null`/`''` become an empty payload).
-3. Native code builds sorted protected headers (always including `alg`), base64url-encodes header and payload, signs `base64url(header).base64url(payload)` with HMAC, and returns the compact token.
+// ECDSA P-256
+const ecKeyPair = await Signatures.generateEcdsaKeyPair();
+const ecSig     = await Signatures.signEcdsa('message', ecKeyPair.privateKey);
+const ecValid   = await Signatures.verifyEcdsa('message', ecSig, ecKeyPair.publicKey);
+```
 
-**Empty payload** (`undefined`, `null`, or `''`) produces three segments with an empty middle segment:
+### CSPRNG
 
-```javascript
+```typescript
+import { Random } from 'react-native-security-suite';
+
+const bytes = await Random.randomBytes(32);   // base64-encoded, 32 random bytes
+const uuid  = await Random.randomUUID();      // 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+```
+
+---
+
+## JWS Request Signing
+
+### Symmetric (HS256 / HS384 / HS512)
+
+```typescript
 import { generateJWS } from 'react-native-security-suite';
 
 const jws = await generateJWS({
   algorithm: 'HS256',
-  secret: 'my-temporary-secret',
-  headers: { kid: 'key-1' },
+  secret: 'session-secret-from-backend',
+  payload: { amount: 100, currency: 'USD' },
+  headers: { kid: 'key-1', request_id: 'req-abc' },
 });
-
-// compact form: <protectedHeader>.<payload>.<signature>
-// jws.split('.').length === 3
-// jws.split('.')[1] === ''   // empty payload segment
+// compact: <header>.<payload>.<signature>
 ```
 
-**JSON payload:**
+### Asymmetric (ES256 / EdDSA)
 
-```javascript
-const jws = await generateJWS({
-  algorithm: 'HS512',
-  secret: 'my-temporary-secret',
-  payload: { amount: 1000, currency: 'USD' },
-  headers: { kid: 'key-1', request_id: 'req-123', typ: 'JWS' },
+```typescript
+import { generateAsymmetricJWS, Signatures } from 'react-native-security-suite';
+
+const { privateKey } = await Signatures.generateEd25519KeyPair();
+
+const jws = await generateAsymmetricJWS({
+  algorithm: 'EdDSA',
+  privateKey,
+  payload: { userId: 42 },
+  headers: { kid: 'ed-key-1' },
 });
 ```
 
-**Header rules:** keys must match `^[a-zA-Z][a-zA-Z0-9_-]*$`; values must be JSON primitives (`string`, `number`, `boolean`, `null`). String values must be printable ASCII (`0x20`–`0x7E`). If both `algorithm` and `headers.alg` are set, they must match.
+```typescript
+// ES256 (ECDSA P-256)
+const { privateKey: ecPrivKey } = await Signatures.generateEcdsaKeyPair();
 
-> **Security note:** HS* JWS on mobile uses a client-side shared secret. It helps with request integrity when combined with TLS, but it is not proof against a fully compromised client.
+const jws = await generateAsymmetricJWS({
+  algorithm: 'ES256',
+  privateKey: ecPrivKey,
+  payload: { action: 'transfer' },
+});
+```
 
-### 8. Fetch Request Signing with JWS
+### Auto-signing on `fetch`
 
-Pass a `jws` object on `fetch` options. The signed token is sent as an HTTP header (default: `X-Request-Signature`).
-
-```javascript
+```typescript
 import { fetch } from 'react-native-security-suite';
 
 await fetch('https://api.example.com/payments', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: { amount: 1000 },
+  body: { amount: 100 },
   jws: {
     algorithm: 'HS256',
-    secret: 'temporary-session-secret',
+    secret: 'session-secret-from-backend',
     headers: {
       kid: 'key-1',
-      request_id: 'req-123',
+      request_id: crypto.randomUUID(),
       timestamp: Date.now(),
-      nonce: 'unique-nonce-per-request',
     },
-    headerName: 'X-Request-Signature',
+    headerName: 'X-Request-Signature', // default
     detached: false,
   },
+  certificates: ['sha256/AAAA…='],
+  validDomains: ['api.example.com'],
 });
 ```
 
-**Default signing payload** (when `jws.payload` is omitted): native code builds a sorted JSON object from:
+When `jws.payload` is omitted, native code builds a canonical payload from `method`, `path`, `query`, `bodyHash`, and any `timestamp`/`nonce`/`request_id` from `jws.headers`.
 
-| Field | Source |
-|-------|--------|
-| `method` | HTTP method (uppercased) |
-| `path` | URL path (`/` if empty) |
-| `query` | Query string (if present) |
-| `bodyHash` | Base64url SHA-256 of request body (if body present) |
-| `timestamp`, `nonce`, `request_id` | Copied from `jws.headers` when provided |
+---
 
-**Explicit fetch payload:** when you set `jws.payload`, it must already be a string (use `JSON.stringify` for objects). For fetch, object payloads are not auto-serialized — only `generateJWS` accepts object payloads directly.
+## Secure Storage
 
-```javascript
-jws: {
-  secret: 'temporary-session-secret',
-  payload: JSON.stringify({ amount: 1000, currency: 'USD' }),
-}
+### Basic usage
+
+```typescript
+import { SecureStorage } from 'react-native-security-suite';
+
+await SecureStorage.setItem('token', 'eyJhbGc…');
+const token = await SecureStorage.getItem('token');
+await SecureStorage.removeItem('token');
+await SecureStorage.clear();
 ```
 
-**Detached fetch signing** — set `jws.detached: true` to send `header..signature` while the raw payload remains in the request body:
+Values are encrypted at rest — AES-GCM via EncryptedSharedPreferences on Android; Keychain with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` on iOS. No hardcoded keys or salts.
 
-```javascript
-jws: {
-  secret: 'temporary-session-secret',
-  detached: true,
-  headers: { kid: 'key-1', request_id: 'req-123' },
-}
+### Biometric-gated items
+
+Require biometric authentication before reading or writing a value.
+
+```typescript
+import { Storage } from 'react-native-security-suite';
+
+// Store — prompts biometric before writing
+await Storage.setItem('secret', 'my-value', {
+  requireBiometric: true,
+  prompt: 'Authenticate to save your secret',
+});
+
+// Read — prompts biometric before returning the value
+const value = await Storage.getItem('secret', {
+  requireBiometric: true,
+  prompt: 'Authenticate to read your secret',
+});
+
+// Check availability first
+const available = await Storage.biometricIsAvailable();
 ```
 
-**Legacy fetch signing (after `establishSharedKey`):** pass `keyId` and `requestId` at the top level of `fetch` options. Native code signs the raw request body with the derived HMAC key — no `secret` in JavaScript:
+### Key expiry
 
-```javascript
-import { Crypto, fetch } from 'react-native-security-suite';
-import { cryptoOptions } from './cryptoConfig';
+```typescript
+import { Storage } from 'react-native-security-suite';
 
-await Crypto.establishSharedKey(serverPublicKey, cryptoOptions);
-await fetch(url, {
-  method: 'POST',
-  body: JSON.stringify({ password: encrypted }),
-  keyId: sessionKeyId,
-  requestId: uuid(),
-  certificates: [...],
-  validDomains: [...],
+const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+await Storage.setItemWithExpiry('session', sessionToken, expiresAt);
+
+// Returns null if expired; does not delete the key
+const session = await Storage.getItemIfValid('session');
+
+// Remove only if expired (returns true when removed)
+const removed = await Storage.removeIfExpired('session');
+```
+
+### Key rotation
+
+```typescript
+import { Storage } from 'react-native-security-suite';
+
+// Atomically replace the value and increment the version counter
+await Storage.rotateItem('api-key', newApiKey);
+
+// Inspect version and expiry metadata
+const meta = await Storage.getMetadata('api-key');
+// { version: 2, createdAt: 1234567890, expiresAt?: … }
+```
+
+---
+
+## Network Security
+
+### Global fetch interceptor
+
+Route all outbound `fetch` calls through the native SSL-pinned transport.
+
+```typescript
+import { NetworkSecurity } from 'react-native-security-suite';
+
+// Configure once at app startup
+NetworkSecurity.configurePinning({
+  certificates: ['sha256/AAAA…=', 'sha256/BBBB…='],
+  validDomains: ['api.example.com'],
+});
+
+// Install the interceptor — returns an uninstall function
+const uninstall = NetworkSecurity.installFetchInterceptor();
+
+// Any subsequent fetch('https://api.example.com/…') is now pinned
+const res = await fetch('https://api.example.com/data');
+
+// Restore original fetch when done (e.g. in tests)
+uninstall();
+```
+
+### Per-instance pinned transport
+
+Use `createPinnedFetch` when you want pinning only for specific calls.
+
+```typescript
+import { NetworkSecurity } from 'react-native-security-suite';
+
+const pinnedFetch = NetworkSecurity.createPinnedFetch({
+  certificates: ['sha256/AAAA…='],
+  validDomains: ['api.example.com'],
+});
+
+const res = await pinnedFetch('https://api.example.com/resource', {
+  method: 'GET',
+  headers: { Authorization: 'Bearer token' },
 });
 ```
 
-**Modern fetch signing:** pass an explicit secret via `options.jws.secret` (see examples above).
+### SSL pinning with the legacy `fetch`
 
-Legacy signing uses detached HS256, `b64: false`, and the `X-JWS-Signature` header.
-
-### 9. SSL Certificate Pinning
-
-Secure your API communications with certificate pinning:
-
-```javascript
+```typescript
 import { fetch } from 'react-native-security-suite';
 
-const secureApiCall = async () => {
-  try {
-    const response = await fetch('https://api.yourapp.com/secure-endpoint', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer your-token',
-      },
-      body: JSON.stringify({
-        userId: 123,
-        action: 'sensitive_operation',
-      }),
-      certificates: [
-        'sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-        'sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=',
-      ],
-      validDomains: ['api.yourapp.com', 'secure.yourapp.com'],
-      timeout: 10000,
-    });
-
-    const data = await response.json();
-    console.log('Secure API response:', data);
-  } catch (error) {
-    console.error('SSL pinning failed:', error);
-    // Handle certificate validation failure
-  }
-};
+await fetch('https://api.example.com/secure', {
+  method: 'GET',
+  headers: {},
+  certificates: ['sha256/AAAA…='],
+  validDomains: ['api.example.com'],
+});
 ```
 
-### 10. Network Monitoring & Debugging
+---
 
-Monitor network requests in development:
+## Screen Protection
 
-```javascript
-import { fetch } from 'react-native-security-suite';
+### Protect individual views from screenshots
 
-const monitoredRequest = async () => {
-  try {
-    const response = await fetch(
-      'https://api.example.com/data',
-      {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      },
-      __DEV__
-    ); // Enable logging in development
+```tsx
+import { SecureView } from 'react-native-security-suite';
 
-    return await response.json();
-  } catch (error) {
-    console.error('Network request failed:', error);
-  }
-};
+function PaymentScreen() {
+  return (
+    <SecureView style={{ flex: 1 }}>
+      <Text>Card number: •••• •••• •••• 4242</Text>
+    </SecureView>
+  );
+}
 ```
 
-## 🔧 API Reference
+### Background / app-switcher privacy
 
-### Security Detection
+Prevent the OS from capturing sensitive content in the app switcher.
 
-- `deviceHasSecurityRisk()` — Detect rooted/jailbroken devices
+**Component approach** — wrap your root navigator:
 
-### Encryption & Storage
+```tsx
+import { BackgroundProtection } from 'react-native-security-suite';
 
-- `obfuscate(input, secret)` — Local obfuscation with explicit secret
-- `deobfuscate(input, secret)` — Reverse `obfuscate`
-- `SecureStorage` — Hardware-backed encrypted storage (`setItem`, `getItem`, `removeItem`, `getAllKeys`, `clear`, `multiGet`, `multiSet`, `multiRemove`)
-- `encrypt(text, hardEncryption?, secretKey?)` — **deprecated**; requires `secretKey`
-- `decrypt(encryptedText, hardEncryption?, secretKey?)` — **deprecated**; requires `secretKey`
+function App() {
+  return (
+    <BackgroundProtection
+      backgroundColor="#1a1a1a"
+      useNativeWindowSecure={true}  // also sets FLAG_SECURE / UIVisualEffectView
+    >
+      <NavigationContainer>…</NavigationContainer>
+    </BackgroundProtection>
+  );
+}
+```
 
-### Key Exchange
+**Hook approach** — conditionally hide content:
 
-All methods below require `options: CryptoOptions` from your application. There is no built-in default profile.
+```tsx
+import { useBackgroundProtection } from 'react-native-security-suite';
 
-- `Crypto.getPublicKey(options)` — Client public key (base64-encoded SPKI / DER for EC, raw 32-byte for X25519)
-- `Crypto.establishSharedKey(serverPublicKey, options)` — Derive shared key in native memory (recommended)
-- `Crypto.encrypt(input, options)` / `Crypto.decrypt(input, options)` — AES-GCM with derived key
-- `getPublicKey(options)` — Legacy alias for `Crypto.getPublicKey()`
-- `getSharedKey(serverPublicKey, options)` — **Deprecated**; returns derived key to JS
-- `encryptBySharedKey(text, options)` / `decryptBySharedKey(encryptedText, options)` — Legacy aliases
+function SensitiveScreen() {
+  const isBackground = useBackgroundProtection();
 
-#### `CryptoOptions`
+  if (isBackground) {
+    return <View style={{ flex: 1, backgroundColor: '#000' }} />;
+  }
 
-All fields are **required**. Define the object in your app — this package does not export algorithm defaults. Reuse the same `cryptoOptions` for `getPublicKey`, `establishSharedKey`, `encrypt`, and `decrypt`.
+  return <YourSensitiveContent />;
+}
+```
 
-| Option | Allowed values |
-|--------|----------------|
-| `keyAgreementAlgorithm` | `'X25519' \| 'ECDH'` |
-| `keyType` | `'OKP' \| 'EC'` (alias: `keyFactoryAlgorithm`) |
-| `encryptionKeyAlgorithm` | `'AES-256' \| 'AES'` |
-| `hmacAlgorithm` | `'HmacSHA256' \| 'HmacSHA384' \| 'HmacSHA512' \| 'HMAC-SHA-256' \| 'HMAC-SHA-384' \| 'HMAC-SHA-512'` (alias: `hmacKeyAlgorithm`) |
-| `cipher` | `'AES-GCM' \| 'AES/GCM/NoPadding'` (alias: `cipherTransformation`) |
-| `tagLength` | `number` — GCM tag length in bits (alias: `gcmTagLength`) |
-| `ivLength` | `number` — GCM IV length in bytes (alias: `gcmIvLength`) |
+**Imperative native API:**
 
-Exported types: `CryptoOptions`, `KeyAgreementAlgorithm`, `KeyType`, `EncryptionKeyAlgorithm`, `HmacAlgorithm`, `CipherAlgorithm`.
+```typescript
+import { ScreenSecurity } from 'react-native-security-suite';
+
+// Enable FLAG_SECURE (Android) or blur overlay (iOS)
+await ScreenSecurity.setWindowSecure(true);
+
+// Remove when no longer needed
+await ScreenSecurity.setWindowSecure(false);
+```
+
+---
+
+## Clipboard Protection
+
+Automatically clear sensitive data from the clipboard.
+
+```typescript
+import { ClipboardGuard } from 'react-native-security-suite';
+
+// Copy and auto-clear after 30 seconds
+ClipboardGuard.copy('4111 1111 1111 1111', { clearAfterMs: 30_000 });
+
+// Cancel the pending auto-clear (e.g. user navigated away)
+ClipboardGuard.cancelAutoClear();
+
+// Clear immediately
+ClipboardGuard.clear();
+
+// Read clipboard
+const text = await ClipboardGuard.read();
+```
+
+Requires `@react-native-clipboard/clipboard` (recommended) or the deprecated built-in `Clipboard` from `react-native`.
+
+---
+
+## Device Attestation
+
+Cryptographically verify to your server that a request originated from a genuine, unmodified app instance.
+
+```typescript
+import { DeviceAttestation } from 'react-native-security-suite';
+
+// 1. Check support
+const supported = await DeviceAttestation.isSupported();
+
+// 2. Fetch a challenge from your server, then attest the device
+const { platform, attestation, keyId } = await DeviceAttestation.attestDevice(
+  challengeHashBase64  // SHA-256 of server nonce (iOS) or raw nonce (Android)
+);
+
+// 3. Send { platform, attestation, keyId } to your server for verification
+
+// 4. For subsequent requests (iOS only), generate an assertion
+const { assertion } = await DeviceAttestation.generateAssertion(
+  keyId!,
+  requestHashBase64  // SHA-256 of the request data
+);
+```
+
+**iOS (App Attest)**
+- Requires the "App Attest" capability in your Apple Developer account
+- `keyId` is a persistent key identifier stored by the OS
+- Verification uses Apple's public attestation root CA
+
+**Android (Play Integrity)**
+- Requires `com.google.android.play:integrity` as an `implementation` dependency
+- Returns a Play Integrity token — verify server-side via Google's API
+- No persistent key; each call produces a fresh token from a server nonce
+
+---
+
+## API Reference
+
+### SecuritySuite
+
+| Method | Description |
+|--------|-------------|
+| `initialize(config)` | Initialize once at startup. Required before using crypto or HKDF-derived features. |
+| `configure(config)` | Update behavior config after initialization. |
+| `getSecurityReport()` | Full `SecurityReport` with device, runtime, app integrity, and risk score. |
+| `protect(policy?)` | Throws `SecurityError` if any policy condition is met. |
+| `isInitialized()` | `true` if `initialize()` has been called. |
+
+### DeviceSecurity
+
+| Method | Description |
+|--------|-------------|
+| `isCompromised()` | `true` if device is rooted (Android) or jailbroken (iOS). |
+| `isRooted()` | Android only. |
+| `isJailbroken()` | iOS only. |
+| `isEmulator()` | `true` if running on an emulator or simulator. |
+| `getEnvironment()` | `{ isEmulator, isSimulator, indicators: string[] }` |
+| `protectEnvironment(policy?)` | Throws `SecurityError` when `blockEmulator: true`. |
+
+### RuntimeSecurity
+
+| Method | Description |
+|--------|-------------|
+| `detect()` | `RuntimeThreatReport` — all runtime signals. |
+| `isDebuggerAttached()` | `true` if a debugger is connected. |
+| `isHooked()` | `true` if Frida, Xposed, Substrate, or Magisk is detected. |
+| `protect(policy?)` | Throws `SecurityError` on configured violations. |
+
+### AppIntegrity
+
+| Method | Description |
+|--------|-------------|
+| `verify()` | `AppIntegrityReport` — signature validity, tamper state, build type, installer info. |
+
+### ThreatMonitor
+
+| Method | Description |
+|--------|-------------|
+| `start(options)` | Begin polling. Returns `{ stop() }`. |
+
+`ThreatMonitorOptions`: `intervalMs` (default 30 000), `minRiskLevel` (default `'medium'`), `onThreat`, `onError`, `runImmediately` (default `true`).
+
+### Crypto modules
+
+| Export | Methods |
+|--------|---------|
+| `Hashing` | `hash(input, algorithm)` — `'SHA-256'` or `'SHA-512'` |
+| `KDF` | `deriveKeys(params)` — HKDF with HMAC |
+| `KeyExchange` | `getEcdhPublicKey()`, `ecdhComputeAndDeriveKeys(params)`, `getX25519PublicKey()`, `x25519ComputeAndDeriveKeys(params)` |
+| `Encryption` | `encryptAesGcm(plaintext, keyBase64)`, `decryptAesGcm(ciphertext, keyBase64)` |
+| `Signatures` | `generateEd25519KeyPair()`, `signEd25519(msg, pk)`, `verifyEd25519(msg, sig, pub)`, `generateEcdsaKeyPair()`, `signEcdsa(msg, pk)`, `verifyEcdsa(msg, sig, pub)` |
+| `Random` | `randomBytes(count)` → base64 string, `randomUUID()` → UUID v4 string |
+| `CryptoManager` | Lower-level wrapper (same operations, single import) |
 
 ### JWS
 
-- `generateJWS(options: GenerateJWSOptions)` — Generate compact or detached JWS
+| Export | Description |
+|--------|-------------|
+| `generateJWS(options)` | Symmetric JWS — HS256, HS384, HS512. Requires `secret`. |
+| `generateAsymmetricJWS(options)` | Asymmetric JWS — ES256 (ECDSA P-256) or EdDSA (Ed25519). Requires `privateKey`. |
 
-#### `GenerateJWSOptions`
+`GenerateJWSOptions`: `secret`, `algorithm?`, `payload?`, `headers?`  
+`GenerateAsymmetricJWSOptions`: `privateKey`, `algorithm` (`'ES256'` or `'EdDSA'`), `payload?`, `headers?`, `detached?`
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `secret` | yes | Non-empty HMAC secret |
-| `algorithm` | no | `HS256` (default), `HS384`, or `HS512` |
-| `payload` | no | String, object, array, number, boolean, `null`, or `undefined` |
-| `headers` | no | Custom protected headers (`kid`, `request_id`, etc.) |
+### SecureStorage (legacy export)
 
-#### `JwsFetchOptions` (on `fetch` options)
+The top-level `SecureStorage` export provides basic CRUD without lifecycle or biometric options.
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `secret` | yes | Non-empty HMAC secret |
-| `algorithm` | no | `HS256` (default), `HS384`, or `HS512` |
-| `headers` | no | Protected headers; `timestamp`/`nonce`/`request_id` also feed the default payload |
-| `payload` | no | Explicit signing string; omit to use the default fetch payload |
-| `detached` | no | Detached compact form (default: `false`) |
-| `headerName` | no | Request header name (default: `X-Request-Signature`) |
+| Method | Description |
+|--------|-------------|
+| `setItem(key, value)` | Store a value. |
+| `getItem(key)` | Retrieve a value or `null`. |
+| `removeItem(key)` | Delete a key. |
+| `getAllKeys()` | All stored keys. |
+| `clear()` | Delete all entries. |
+| `multiSet(pairs)` | Batch write. |
+| `multiGet(keys)` | Batch read. |
+| `multiRemove(keys)` | Batch delete. |
 
-Exported types: `JwsAlgorithm`, `JwsPayload`, `JwsHeaders`, `JwsHeaderValue`, `GenerateJWSOptions`, `JwsFetchOptions`.
+### Storage (new namespace with biometric + lifecycle)
 
-### Network Security
+Extends `SecureStorage` with biometric options, expiry, and rotation. All methods take an optional `SecureStorageOptions` argument (`requireBiometric?`, `prompt?`, `subtitle?`).
 
-- `fetch(url, options, loggerEnabled?)` — Secure fetch with SSL pinning and optional JWS signing
+| Method | Description |
+|--------|-------------|
+| `setItem(key, value, options?)` | Write; biometric auth if `requireBiometric: true`. |
+| `getItem(key, options?)` | Read; biometric auth if `requireBiometric: true`. |
+| `removeItem(key)` | Delete a key. |
+| `getAllKeys()` | All stored keys (excludes internal metadata keys). |
+| `clear()` | Delete all entries. |
+| `multiSet/Get/Remove` | Batch operations (no biometric option). |
+| `biometricIsAvailable()` | Check biometric hardware availability. |
+| `setItemWithExpiry(key, value, expiresAt, options?)` | Store with expiry date. |
+| `getItemIfValid(key, options?)` | Read; returns `null` if expired. |
+| `removeIfExpired(key)` | Delete if past expiry. Returns `true` when removed. |
+| `rotateItem(key, newValue, options?)` | Atomically replace and increment version. |
+| `getMetadata(key)` | `{ version, createdAt, expiresAt? }` or `null`. |
 
-`fetch` `options` also accepts `certificates` + `validDomains` for SSL pinning, and deprecated top-level `keyId`, `requestId`, `secret` for legacy JWS.
+### NetworkSecurity
 
-### UI Components
+| Method | Description |
+|--------|-------------|
+| `configurePinning(config)` | Set a global `PinningConfig` used by `installFetchInterceptor`. |
+| `clearPinningConfig()` | Remove the global config. |
+| `installFetchInterceptor(config?)` | Patch `global.fetch`. Returns an uninstall function. |
+| `uninstallFetchInterceptor()` | Restore original `global.fetch`. |
+| `createPinnedFetch(config)` | Return a standalone pinned fetch function. |
 
-- `SecureView` — Screenshot-protected view component
+`PinningConfig`: `{ certificates: string[], validDomains: string[] }`
 
-## 🛡️ Security Best Practices
+### ClipboardGuard
 
-1. **Define `cryptoOptions` in your app** — Do not rely on library defaults; keep the profile in app code or server-delivered config that matches your backend
-2. **Always validate certificates** — Use SSL pinning for production APIs
-3. **Detect compromised devices** — Check for root/jailbreak before sensitive operations
-4. **Store secrets in SecureStorage** — Use hardware-backed storage for tokens and credentials
-5. **Protect sensitive UI** — Wrap sensitive content in `SecureView`
-6. **Sign requests with JWS** — After `establishSharedKey`, use `keyId` + `requestId` on `fetch` so the HMAC key stays native; or pass short-lived `jws.secret` from your backend
-7. **Use detached JWS for body signing** — When the request body is the signed payload, set `jws.detached: true` so the body is not duplicated inside the token
-8. **Monitor network traffic** — Use built-in logging for debugging only; disable in production
-9. **Rotate session secrets** — Treat `jws.secret` as a short-lived session or request-scoped value from your backend
+| Method | Description |
+|--------|-------------|
+| `copy(text, options?)` | Write to clipboard. `options.clearAfterMs` schedules auto-clear. |
+| `clear()` | Immediately clear clipboard and cancel any pending auto-clear. |
+| `cancelAutoClear()` | Cancel pending auto-clear without wiping the clipboard. |
+| `read()` | Return clipboard contents. |
 
-## 🐛 Troubleshooting
+### Screen
 
-### Common Issues
+| Export | Description |
+|--------|-------------|
+| `SecureView` | Component that blocks screenshots and screen recordings per-view. |
+| `BackgroundProtection` | Component that overlays a privacy screen when the app is inactive. Props: `backgroundColor`, `opacity`, `useNativeWindowSecure`. |
+| `useBackgroundProtection(options?)` | Hook that returns `true` while the app is not active. |
+| `ScreenSecurity.setWindowSecure(enabled)` | Imperatively enable/disable native window security. |
 
-**iOS Build Errors:**
+### DeviceAttestation
 
+| Method | Description |
+|--------|-------------|
+| `isSupported()` | `true` if App Attest (iOS) or Play Services (Android) is available. |
+| `generateKey()` | iOS: generate and persist an App Attest key; returns `keyId`. Android: no-op. |
+| `attestKey(keyId, clientDataHash)` | iOS: attest key against Apple. Returns base64 CBOR attestation object. |
+| `generateAssertion(keyId, clientDataHash)` | iOS: generate request assertion. Returns `{ assertion, keyId }`. |
+| `getPlayIntegrityToken(nonce)` | Android: request Play Integrity token. iOS: returns `''`. |
+| `attestDevice(challengeHash)` | Unified helper — App Attest on iOS, Play Integrity on Android. |
+
+### Errors
+
+```typescript
+import { SecurityError, SecurityErrorCode, isSecurityError } from 'react-native-security-suite';
+
+// SecurityErrorCode values:
+// ROOT_DETECTED, JAILBREAK_DETECTED, EMULATOR_DETECTED
+// DEBUGGER_DETECTED, FRIDA_DETECTED, XPOSED_DETECTED, SUBSTRATE_DETECTED, MAGISK_DETECTED
+// SECURITY_RISK_THRESHOLD, SSL_PINNING_FAILED
+// BIOMETRIC_UNAVAILABLE, BIOMETRIC_AUTH_FAILED
+// ATTESTATION_UNSUPPORTED, ATTESTATION_ERROR
+// NETWORK_PINNING_FAILED, CLIPBOARD_UNAVAILABLE, CRYPTO_RANDOM_ERROR
+// SECURE_STORAGE_UNAVAILABLE, CRYPTO_KEY_NOT_FOUND, CONFIGURATION_ERROR
+```
+
+---
+
+## Security Best Practices
+
+1. **Call `SecuritySuite.protect()` at startup** before rendering sensitive UI. Pair client-side checks with server-side policy enforcement — client checks are advisory.
+
+2. **Use `Storage` (not `SecureStorage`) for sensitive long-lived keys.** Add `requireBiometric: true` for values like encryption keys or signing secrets. Use `setItemWithExpiry` for session tokens.
+
+3. **Pin certificates in production.** Use `NetworkSecurity.installFetchInterceptor()` once at startup so all `fetch` calls are covered. Include a backup pin to survive certificate rotation.
+
+4. **Treat JWS secrets as short-lived.** `jws.secret` on `fetch` is visible in JS memory. Use a server-issued, request-scoped or session-scoped secret, or use asymmetric signing (`ES256`/`EdDSA`) with a hardware-backed private key.
+
+5. **Combine `BackgroundProtection` with `ScreenSecurity.setWindowSecure(true)`** for defense in depth — the component handles JS-side hiding; the native flag prevents OS-level capture.
+
+6. **Auto-clear clipboard.** Any value copied to the clipboard via `ClipboardGuard.copy` should use `clearAfterMs` — 30 seconds is a reasonable default for sensitive content.
+
+7. **Verify attestation server-side.** `DeviceAttestation.attestDevice()` returns an opaque blob. Your backend must verify it with Apple or Google before trusting it. Never use the client-side result alone to grant access.
+
+8. **Start `ThreatMonitor` after authentication,** not at app open. A 30-second interval is a reasonable balance between security and battery life.
+
+---
+
+## Troubleshooting
+
+**iOS pod install / build fails:**
 ```bash
-cd ios && pod install && cd ..
+cd ios && pod install
 npx react-native run-ios
 ```
 
-**Android Build Errors:**
-
+**Android build fails:**
 ```bash
-cd android && ./gradlew clean && cd ..
+cd android && ./gradlew clean
 npx react-native run-android
 ```
 
-**Metro Cache Issues:**
-
+**Metro cache issues:**
 ```bash
 npx react-native start --reset-cache
 ```
 
-## 🤝 Contributing
+**Biometric prompt not appearing:** Make sure the host Activity extends `FragmentActivity` (the default in React Native). Biometric requires Android API 28+.
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+**App Attest returns "unsupported":** `DCAppAttestService.isSupported` is `false` on the iOS Simulator and on devices running iOS < 14. Test on a real device.
 
-### Development Setup
+**Play Integrity returns an error:** Ensure `com.google.android.play:integrity` is in your app's (not the library's) `build.gradle` as `implementation`, and that the device has Google Play Services.
+
+---
+
+## Contributing
 
 ```bash
 git clone https://github.com/mohamadnavabi/react-native-security-suite.git
 cd react-native-security-suite
 yarn install
 cd example && yarn install && cd ..
-yarn example android # or ios
+yarn example android  # or ios
 ```
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Chucker](https://github.com/ChuckerTeam/chucker) for Android network monitoring
-- [Pulse](https://github.com/kean/Pulse) for iOS network monitoring
-- React Native community for continuous support
-
-## 📞 Support
-
-- 📧 Email: 7navabi@gmail.com
-- 🐛 Issues: [GitHub Issues](https://github.com/mohamadnavabi/react-native-security-suite/issues)
-- 📖 Documentation: [GitHub Wiki](#)
+Run tests: `yarn test`  
+Type check: `yarn typecheck`  
+Lint: `yarn lint`
 
 ---
 
-**Made with ❤️ for the React Native community**
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## Acknowledgments
+
+- [IOSSecuritySuite](https://github.com/securing/IOSSecuritySuite) — jailbreak and runtime detection on iOS
+- [RootBeer](https://github.com/scottyab/rootbeer) — root detection on Android
+- [Chucker](https://github.com/ChuckerTeam/chucker) — Android network monitor
+- [Pulse](https://github.com/kean/Pulse) — iOS network monitor
+
+---
+
+Issues: [github.com/mohamadnavabi/react-native-security-suite/issues](https://github.com/mohamadnavabi/react-native-security-suite/issues)  
+Author: Mohammad Navabi — 7navabi@gmail.com
