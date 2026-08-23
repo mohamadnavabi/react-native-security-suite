@@ -3,6 +3,14 @@ import type {
   BiometricOptions,
   SecureStorageOptions,
 } from '../types/detection';
+import {
+  assertKey,
+  assertKeys,
+  assertPairs,
+  assertValue,
+  checkInput,
+  guardStorage,
+} from './validate';
 
 export type { BiometricOptions, SecureStorageOptions };
 
@@ -25,11 +33,8 @@ function n(): any {
   return NativeModules.SecuritySuite;
 }
 
-function wrapStorage<T>(op: string, promise: Promise<T>): Promise<T> {
-  return promise.catch((err: unknown) => {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Secure storage operation failed (${op}): ${msg}`);
-  });
+function wrapStorage<T>(op: string, call: () => Promise<T>): Promise<T> {
+  return guardStorage(op, call);
 }
 
 // ─── SecureStorage namespace ───────────────────────────────────────────────────
@@ -46,53 +51,60 @@ export const Storage = {
     value: string,
     options?: SecureStorageOptions
   ): Promise<void> {
-    if (options?.requireBiometric) {
-      return wrapStorage<void>(
-        'setItem',
-        n().secureStorageSetItemBiometric(key, value, {
+    return wrapStorage<void>('setItem', () => {
+      assertKey(key);
+      assertValue(value);
+      if (options?.requireBiometric) {
+        return n().secureStorageSetItemBiometric(key, value, {
           prompt: options.prompt ?? 'Authenticate to save',
           subtitle: options.subtitle ?? '',
-        })
-      );
-    }
-    return wrapStorage<void>('setItem', n().secureStorageSetItem(key, value));
+        });
+      }
+      return n().secureStorageSetItem(key, value);
+    });
   },
 
   getItem(key: string, options?: SecureStorageOptions): Promise<string | null> {
-    if (options?.requireBiometric) {
-      return wrapStorage<string | null>(
-        'getItem',
-        n().secureStorageGetItemBiometric(key, {
+    return wrapStorage<string | null>('getItem', () => {
+      assertKey(key);
+      if (options?.requireBiometric) {
+        return n().secureStorageGetItemBiometric(key, {
           prompt: options.prompt ?? 'Authenticate to read',
           subtitle: options.subtitle ?? '',
-        })
-      );
-    }
-    return wrapStorage<string | null>('getItem', n().secureStorageGetItem(key));
+        });
+      }
+      return n().secureStorageGetItem(key);
+    });
   },
 
   removeItem(key: string): Promise<void> {
-    return wrapStorage<void>('removeItem', n().secureStorageRemoveItem(key));
+    return wrapStorage<void>('removeItem', () => {
+      assertKey(key);
+      return n().secureStorageRemoveItem(key);
+    });
   },
 
   getAllKeys(): Promise<string[]> {
-    return wrapStorage<string[]>(
-      'getAllKeys',
+    return wrapStorage<string[]>('getAllKeys', () =>
       n().secureStorageGetAllKeys()
-    ).then((keys: string[]) => keys.filter((k) => !k.endsWith(META_SUFFIX)));
-  },
-
-  clear(): Promise<void> {
-    return wrapStorage<void>('clear', n().secureStorageClear());
-  },
-
-  multiSet(pairs: Array<[string, string]>): Promise<void> {
-    return Promise.all(pairs.map(([k, v]) => Storage.setItem(k, v))).then(
-      () => undefined
+    ).then((keys: string[] | null) =>
+      (keys ?? []).filter((k) => !k.endsWith(META_SUFFIX))
     );
   },
 
-  multiGet(keys: string[]): Promise<ReadonlyArray<[string, string | null]>> {
+  clear(): Promise<void> {
+    return wrapStorage<void>('clear', () => n().secureStorageClear());
+  },
+
+  async multiSet(pairs: Array<[string, string]>): Promise<void> {
+    checkInput('multiSet', () => assertPairs(pairs));
+    await Promise.all(pairs.map(([k, v]) => Storage.setItem(k, v)));
+  },
+
+  async multiGet(
+    keys: string[]
+  ): Promise<ReadonlyArray<[string, string | null]>> {
+    checkInput('multiGet', () => assertKeys(keys));
     return Promise.all(
       keys.map(
         async (k) => [k, await Storage.getItem(k)] as [string, string | null]
@@ -100,18 +112,16 @@ export const Storage = {
     );
   },
 
-  multiRemove(keys: string[]): Promise<void> {
-    return Promise.all(keys.map((k) => Storage.removeItem(k))).then(
-      () => undefined
-    );
+  async multiRemove(keys: string[]): Promise<void> {
+    checkInput('multiRemove', () => assertKeys(keys));
+    await Promise.all(keys.map((k) => Storage.removeItem(k)));
   },
 
   // ── Biometric availability ────────────────────────────────────────────────
 
   /** Returns true if biometric authentication is available on this device. */
   biometricIsAvailable(): Promise<boolean> {
-    return wrapStorage<boolean>(
-      'biometricIsAvailable',
+    return wrapStorage<boolean>('biometricIsAvailable', () =>
       n().secureStorageBiometricIsAvailable()
     );
   },
@@ -128,6 +138,10 @@ export const Storage = {
     expiresAt: Date,
     options?: SecureStorageOptions
   ): Promise<void> {
+    checkInput('setItemWithExpiry', () => {
+      assertKey(key);
+      assertValue(value);
+    });
     const meta: KeyMeta = {
       version: 1,
       createdAt: Date.now(),
@@ -147,6 +161,7 @@ export const Storage = {
     key: string,
     options?: SecureStorageOptions
   ): Promise<string | null> {
+    checkInput('getItemIfValid', () => assertKey(key));
     const [value, rawMeta] = await Promise.all([
       Storage.getItem(key, options),
       Storage.getItem(metaKey(key)),
@@ -172,6 +187,7 @@ export const Storage = {
    * Remove a key only if it has expired. Returns true if the item was removed.
    */
   async removeIfExpired(key: string): Promise<boolean> {
+    checkInput('removeIfExpired', () => assertKey(key));
     const rawMeta = await Storage.getItem(metaKey(key));
     if (!rawMeta) return false;
 
@@ -199,6 +215,10 @@ export const Storage = {
     newValue: string,
     options?: SecureStorageOptions
   ): Promise<void> {
+    checkInput('rotateItem', () => {
+      assertKey(key);
+      assertValue(newValue);
+    });
     const rawMeta = await Storage.getItem(metaKey(key));
     let version = 1;
     let expiresAt: number | undefined;
@@ -222,6 +242,7 @@ export const Storage = {
 
   /** Read the version and expiry metadata for a key, if available. */
   async getMetadata(key: string): Promise<KeyMeta | null> {
+    checkInput('getMetadata', () => assertKey(key));
     const raw = await Storage.getItem(metaKey(key));
     if (!raw) return null;
     try {

@@ -646,10 +646,35 @@ class SecuritySuite: NSObject {
         }
     }
 
+    private static func secureStorageKey(_ key: NSString?) -> String? {
+        guard let key = key as String?,
+              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return key
+    }
+
+    private static func rejectInvalidStorageInput(
+        _ reject: RCTPromiseRejectBlock,
+        _ detail: String
+    ) {
+        reject(
+            "SECURE_STORAGE_INVALID_INPUT",
+            "Secure storage operation failed: \(detail)",
+            nil
+        )
+    }
+
     @objc(secureStorageSetItem:withValue:withResolver:withRejecter:)
-    func secureStorageSetItem(key: NSString, value: NSString, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    func secureStorageSetItem(key: NSString?, value: NSString?, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        guard let key = SecuritySuite.secureStorageKey(key) else {
+            return SecuritySuite.rejectInvalidStorageInput(reject, "a non-empty string key is required")
+        }
+        guard let value = value as String? else {
+            return SecuritySuite.rejectInvalidStorageInput(reject, "a string value is required")
+        }
         do {
-            try SecureStorageNative.shared.setItem(key: key as String, value: value as String)
+            try SecureStorageNative.shared.setItem(key: key, value: value)
             resolve(nil)
         } catch {
             reject("SECURE_STORAGE_ERROR", error.localizedDescription, error)
@@ -657,18 +682,24 @@ class SecuritySuite: NSObject {
     }
 
     @objc(secureStorageGetItem:withResolver:withRejecter:)
-    func secureStorageGetItem(key: NSString, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    func secureStorageGetItem(key: NSString?, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        guard let key = SecuritySuite.secureStorageKey(key) else {
+            return SecuritySuite.rejectInvalidStorageInput(reject, "a non-empty string key is required")
+        }
         do {
-            resolve(try SecureStorageNative.shared.getItem(key: key as String))
+            resolve(try SecureStorageNative.shared.getItem(key: key))
         } catch {
             reject("SECURE_STORAGE_ERROR", error.localizedDescription, error)
         }
     }
 
     @objc(secureStorageRemoveItem:withResolver:withRejecter:)
-    func secureStorageRemoveItem(key: NSString, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    func secureStorageRemoveItem(key: NSString?, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        guard let key = SecuritySuite.secureStorageKey(key) else {
+            return SecuritySuite.rejectInvalidStorageInput(reject, "a non-empty string key is required")
+        }
         do {
-            try SecureStorageNative.shared.removeItem(key: key as String)
+            try SecureStorageNative.shared.removeItem(key: key)
             resolve(nil)
         } catch {
             reject("SECURE_STORAGE_ERROR", error.localizedDescription, error)
@@ -1205,13 +1236,19 @@ class SecuritySuite: NSObject {
 
     @objc(secureStorageSetItemBiometric:withValue:withOptions:withResolver:withRejecter:)
     func secureStorageSetItemBiometric(
-        key: NSString,
-        value: NSString,
-        options: NSDictionary,
+        key: NSString?,
+        value: NSString?,
+        options: NSDictionary?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
-        let prompt = options["prompt"] as? String ?? "Authenticate to save"
+        guard let key = SecuritySuite.secureStorageKey(key) else {
+            return SecuritySuite.rejectInvalidStorageInput(reject, "a non-empty string key is required")
+        }
+        guard let value = value as String? else {
+            return SecuritySuite.rejectInvalidStorageInput(reject, "a string value is required")
+        }
+        let prompt = options?["prompt"] as? String ?? "Authenticate to save"
         DispatchQueue.global(qos: .userInitiated).async {
             let context = LAContext()
             var error: NSError?
@@ -1228,7 +1265,7 @@ class SecuritySuite: NSObject {
                 DispatchQueue.main.async {
                     if success {
                         do {
-                            try SecureStorageNative.shared.setItem(key: key as String, value: value as String)
+                            try SecureStorageNative.shared.setItem(key: key, value: value)
                             resolve(nil)
                         } catch {
                             reject("SECURE_STORAGE_ERROR", error.localizedDescription, error)
@@ -1243,12 +1280,15 @@ class SecuritySuite: NSObject {
 
     @objc(secureStorageGetItemBiometric:withOptions:withResolver:withRejecter:)
     func secureStorageGetItemBiometric(
-        key: NSString,
-        options: NSDictionary,
+        key: NSString?,
+        options: NSDictionary?,
         resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock
     ) {
-        let prompt = options["prompt"] as? String ?? "Authenticate to read"
+        guard let key = SecuritySuite.secureStorageKey(key) else {
+            return SecuritySuite.rejectInvalidStorageInput(reject, "a non-empty string key is required")
+        }
+        let prompt = options?["prompt"] as? String ?? "Authenticate to read"
         DispatchQueue.global(qos: .userInitiated).async {
             let context = LAContext()
             var error: NSError?
@@ -1265,7 +1305,7 @@ class SecuritySuite: NSObject {
                 DispatchQueue.main.async {
                     if success {
                         do {
-                            resolve(try SecureStorageNative.shared.getItem(key: key as String))
+                            resolve(try SecureStorageNative.shared.getItem(key: key))
                         } catch {
                             reject("SECURE_STORAGE_ERROR", error.localizedDescription, error)
                         }

@@ -79,6 +79,15 @@ export type { ThreatMonitorOptions, ThreatMonitorHandle } from './monitoring';
 export { NetworkSecurity } from './network';
 export type { PinningConfig, NetworkFetchOptions } from './network';
 
+import {
+  assertKey,
+  assertKeys,
+  assertPairs,
+  assertValue,
+  checkInput,
+  guardStorage,
+} from './storage/validate';
+
 export { Storage } from './storage';
 export type {
   SecureStorageOptions,
@@ -408,53 +417,46 @@ export const decrypt = (
   );
 };
 
-const SECURE_STORAGE_FAILED = 'Secure storage operation failed';
-
 function wrapSecureStorage<T>(
   operation: string,
-  promise: Promise<T>
+  call: () => Promise<T>
 ): Promise<T> {
-  return promise.catch((error: unknown) => {
-    const detail =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : 'Unknown error';
-    throw new Error(`${SECURE_STORAGE_FAILED} (${operation}): ${detail}`);
-  });
+  return guardStorage(operation, call);
 }
 
 /** Hardware-backed encrypted storage (Keychain on iOS, EncryptedSharedPreferences on Android). */
 export const SecureStorage = {
   setItem: (key: string, value: string): Promise<void> =>
-    wrapSecureStorage(
-      'setItem',
-      NativeSecuritySuiteModule.secureStorageSetItem(key, value)
-    ),
+    wrapSecureStorage('setItem', () => {
+      assertKey(key);
+      assertValue(value);
+      return NativeSecuritySuiteModule.secureStorageSetItem(key, value);
+    }),
 
   getItem: (key: string): Promise<string | null> =>
-    wrapSecureStorage(
-      'getItem',
-      NativeSecuritySuiteModule.secureStorageGetItem(key)
-    ),
+    wrapSecureStorage('getItem', () => {
+      assertKey(key);
+      return NativeSecuritySuiteModule.secureStorageGetItem(key);
+    }),
 
   removeItem: (key: string): Promise<void> =>
-    wrapSecureStorage(
-      'removeItem',
-      NativeSecuritySuiteModule.secureStorageRemoveItem(key)
-    ),
+    wrapSecureStorage('removeItem', () => {
+      assertKey(key);
+      return NativeSecuritySuiteModule.secureStorageRemoveItem(key);
+    }),
 
   getAllKeys: (): Promise<string[]> =>
-    wrapSecureStorage(
-      'getAllKeys',
+    wrapSecureStorage<string[] | null>('getAllKeys', () =>
       NativeSecuritySuiteModule.secureStorageGetAllKeys()
-    ),
+    ).then((keys) => keys ?? []),
 
   clear: (): Promise<void> =>
-    wrapSecureStorage('clear', NativeSecuritySuiteModule.secureStorageClear()),
+    wrapSecureStorage('clear', () =>
+      NativeSecuritySuiteModule.secureStorageClear()
+    ),
 
   multiSet: async (keyValuePairs: Array<[string, string]>): Promise<void> => {
+    checkInput('multiSet', () => assertPairs(keyValuePairs));
     await Promise.all(
       keyValuePairs.map(([key, value]) => SecureStorage.setItem(key, value))
     );
@@ -462,17 +464,20 @@ export const SecureStorage = {
 
   multiGet: async (
     keys: string[]
-  ): Promise<readonly [string, string | null][]> =>
-    Promise.all(
+  ): Promise<readonly [string, string | null][]> => {
+    checkInput('multiGet', () => assertKeys(keys));
+    return Promise.all(
       keys.map(
         async (key): Promise<[string, string | null]> => [
           key,
           await SecureStorage.getItem(key),
         ]
       )
-    ),
+    );
+  },
 
   multiRemove: async (keys: string[]): Promise<void> => {
+    checkInput('multiRemove', () => assertKeys(keys));
     await Promise.all(keys.map((key) => SecureStorage.removeItem(key)));
   },
 

@@ -417,6 +417,9 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void secureStorageSetItem(String key, String value, Promise promise) {
+    if (rejectInvalidStorageInput(key, value, promise)) {
+      return;
+    }
     try {
       SecureStorageNative.setItem(context, key, value);
       promise.resolve(null);
@@ -427,6 +430,9 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void secureStorageGetItem(String key, Promise promise) {
+    if (rejectInvalidStorageKey(key, promise)) {
+      return;
+    }
     try {
       promise.resolve(SecureStorageNative.getItem(context, key));
     } catch (Exception e) {
@@ -436,6 +442,9 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void secureStorageRemoveItem(String key, Promise promise) {
+    if (rejectInvalidStorageKey(key, promise)) {
+      return;
+    }
     try {
       SecureStorageNative.removeItem(context, key);
       promise.resolve(null);
@@ -497,6 +506,34 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
       return cryptoConfig.merge(options);
     }
     return CryptoConfig.fromReadableMap(options);
+  }
+
+  /**
+   * JS may hand the bridge null for a key or value (an absent field, for
+   * example). Storing null silently drops the entry here and aborts the process
+   * on iOS, so both are rejected with an explicit error instead.
+   */
+  private static boolean rejectInvalidStorageKey(String key, Promise promise) {
+    if (key == null || key.trim().isEmpty()) {
+      promise.reject(
+          "SECURE_STORAGE_INVALID_INPUT",
+          "Secure storage operation failed: a non-empty string key is required");
+      return true;
+    }
+    return false;
+  }
+
+  private static boolean rejectInvalidStorageInput(String key, String value, Promise promise) {
+    if (rejectInvalidStorageKey(key, promise)) {
+      return true;
+    }
+    if (value == null) {
+      promise.reject(
+          "SECURE_STORAGE_INVALID_INPUT",
+          "Secure storage operation failed: a string value is required");
+      return true;
+    }
+    return false;
   }
 
   private static String secureStorageMessage(Exception error) {
@@ -852,6 +889,9 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void secureStorageSetItemBiometric(String key, String value, ReadableMap options, Promise promise) {
+    if (rejectInvalidStorageInput(key, value, promise)) {
+      return;
+    }
     String prompt = options != null && options.hasKey("prompt") ? options.getString("prompt") : "Authenticate to save";
     String subtitle = options != null && options.hasKey("subtitle") ? options.getString("subtitle") : "";
     Activity activity = getCurrentActivity();
@@ -895,6 +935,9 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void secureStorageGetItemBiometric(String key, ReadableMap options, Promise promise) {
+    if (rejectInvalidStorageKey(key, promise)) {
+      return;
+    }
     String prompt = options != null && options.hasKey("prompt") ? options.getString("prompt") : "Authenticate to read";
     String subtitle = options != null && options.hasKey("subtitle") ? options.getString("subtitle") : "";
     Activity activity = getCurrentActivity();

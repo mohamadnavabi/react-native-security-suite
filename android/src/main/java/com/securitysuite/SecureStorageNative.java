@@ -99,9 +99,17 @@ public final class SecureStorageNative {
 
   private static String namespacedKey(String key) throws IllegalArgumentException {
     if (key == null || key.trim().isEmpty()) {
-      throw new IllegalArgumentException("Storage key is required");
+      throw new IllegalArgumentException("a non-empty string key is required");
     }
     return KEY_PREFIX + key.trim();
+  }
+
+  /** A null value would silently delete the entry rather than store it. */
+  private static String requireValue(String value) throws IllegalArgumentException {
+    if (value == null) {
+      throw new IllegalArgumentException("a string value is required");
+    }
+    return value;
   }
 
   private static Exception secureStorageException(String operation, Exception error) {
@@ -114,7 +122,7 @@ public final class SecureStorageNative {
 
   public static void setItem(Context context, String key, String value) throws Exception {
     try {
-      getPreferences(context).edit().putString(namespacedKey(key), value).apply();
+      getPreferences(context).edit().putString(namespacedKey(key), requireValue(value)).apply();
     } catch (Exception error) {
       throw secureStorageException("setItem", error);
     }
@@ -171,7 +179,7 @@ public final class SecureStorageNative {
       for (int i = 0; i < pairs.size(); i++) {
         ReadableArray pair = pairs.getArray(i);
         if (pair != null && pair.size() == 2) {
-          editor.putString(namespacedKey(pair.getString(0)), pair.getString(1));
+          editor.putString(namespacedKey(pair.getString(0)), requireValue(pair.getString(1)));
         }
       }
       editor.apply();

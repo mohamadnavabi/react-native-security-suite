@@ -86,6 +86,17 @@ await JWS.generate({ keyAlias: 'signing', payload, algorithm: 'ES256' });
 const [token, setToken] = useState(await SecureStorage.getItem('token'));
 ```
 
+## Invalid input
+
+Keys and values must be strings — a `null` or `undefined` value is never forwarded to the platform keychain, which aborts the process on a nil string rather than raising a catchable error. Such a call rejects with `Secure storage operation failed (<operation>): a string value is required, received undefined` (and the native modules reject with code `SECURE_STORAGE_INVALID_INPUT` if the bridge is called directly).
+
+```ts
+// Rejects — it does not crash the app
+await SecureStorage.setItem('token', response.access_token); // access_token missing
+```
+
+An empty string is a valid value; an empty or blank key is not.
+
 ## Error recovery (Android)
 
 If Keystore keys are permanently invalidated (biometric change), operations throw `SECURE_STORAGE_UNAVAILABLE`. App should:
