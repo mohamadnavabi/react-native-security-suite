@@ -32,6 +32,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.hardware.biometrics.BiometricManager;
 import android.os.Build;
 import android.view.WindowManager;
@@ -40,6 +41,7 @@ import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import com.chuckerteam.chucker.api.Chucker;
 import com.scottyab.rootbeer.RootBeer;
 
 import com.securitysuite.crypto.CryptoManager;
@@ -596,6 +598,27 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
   public void deviceHasSecurityRisk(Promise promise) {
     RootBeer rootBeer = new RootBeer(context);
     promise.resolve(rootBeer.isRooted());
+  }
+
+  @ReactMethod
+  public void openNetworkLogger(Promise promise) {
+    if (!BuildConfig.DEBUG) {
+      promise.reject("NETWORK_LOGGER_DISABLED", "Network logger is only available in debug builds");
+      return;
+    }
+    try {
+      Intent intent = Chucker.getLaunchIntent(context);
+      Activity activity = getCurrentActivity();
+      if (activity != null) {
+        activity.startActivity(intent);
+      } else {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent);
+      }
+      promise.resolve(true);
+    } catch (Exception e) {
+      promise.reject("NETWORK_LOGGER_ERROR", e.getMessage(), e);
+    }
   }
 
   // ─── CryptoManager bridge ───────────────────────────────────────────────

@@ -222,13 +222,13 @@ const LINKING_ERROR =
 const NativeSecuritySuiteModule = NativeModules.SecuritySuite
   ? NativeModules.SecuritySuite
   : new Proxy(
-      {},
-      {
-        get() {
-          throw new Error(LINKING_ERROR);
-        },
-      }
-    );
+    {},
+    {
+      get() {
+        throw new Error(LINKING_ERROR);
+      },
+    }
+  );
 
 function withLegacyBootstrap<T>(
   cryptoOverrides: CryptoOptions | undefined,
@@ -550,6 +550,10 @@ export function fetch(
 
 export function deviceHasSecurityRisk(): Promise<boolean> {
   return NativeSecuritySuiteModule.deviceHasSecurityRisk();
+}
+
+export function openNetworkLogger(): Promise<boolean> {
+  return NativeSecuritySuiteModule.openNetworkLogger();
 }
 
 export default NativeSecuritySuiteModule;

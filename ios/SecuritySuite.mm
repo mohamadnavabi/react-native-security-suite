@@ -41,6 +41,8 @@ RCT_EXTERN_METHOD(fetch:(NSString)url withData:(NSDictionary)data withCallback:(
 
 RCT_EXTERN_METHOD(deviceHasSecurityRisk:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(openNetworkLogger:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(runtimeDetect:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(appIntegrityVerify:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)

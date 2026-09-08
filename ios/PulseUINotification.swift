@@ -64,6 +64,10 @@ class PulseUINotification: NSObject, UNUserNotificationCenterDelegate {
   
   @objc(openPulseUI)
   func openPulseUI() {
+    PulseUINotification.presentConsole()
+  }
+
+  static func presentConsole() {
     DispatchQueue.main.async {
       if #available(iOS 14.0, *) {
         let hostingController = UIHostingController(rootView: ConsoleView())

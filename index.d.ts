@@ -246,6 +246,7 @@ declare module 'react-native-security-suite' {
     loggerIsEnabled?: boolean
   ): Promise<any>;
   function deviceHasSecurityRisk(): Promise<boolean>;
+  function openNetworkLogger(): Promise<boolean>;
   function mapNativeError(error: unknown): SecurityError | Error;
   function isSecurityError(error: unknown): error is SecurityError;
 
