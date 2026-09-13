@@ -85,11 +85,7 @@ class SSLPinning: NSObject, URLSessionDataDelegate {
         self.config = PinningConfiguration(data: data)
         super.init()
 
-        #if DEBUG
         loggerEnabled = (data["loggerIsEnabled"] as? Bool) == true
-        #else
-        loggerEnabled = false
-        #endif
     }
 
     static func isHttpsURL(_ urlString: String) -> Bool {

@@ -200,10 +200,7 @@ public class Sslpinning {
           .writeTimeout(timeout, TimeUnit.MILLISECONDS);
     }
 
-    // Hard-gate network logging to debug builds only.
-    if (options.hasKey("loggerIsEnabled")
-        && options.getBoolean("loggerIsEnabled")
-        && BuildConfig.DEBUG) {
+    if (options.hasKey("loggerIsEnabled") && options.getBoolean("loggerIsEnabled")) {
       ChuckerInterceptor chuckerInterceptor = new ChuckerInterceptor.Builder(context)
           .redactHeaders(HeaderSanitizer.SENSITIVE_HEADERS.toArray(new String[0]))
           .build();
