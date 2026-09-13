@@ -602,10 +602,6 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void openNetworkLogger(Promise promise) {
-    if (!BuildConfig.DEBUG) {
-      promise.reject("NETWORK_LOGGER_DISABLED", "Network logger is only available in debug builds");
-      return;
-    }
     try {
       Intent intent = Chucker.getLaunchIntent(context);
       Activity activity = getCurrentActivity();

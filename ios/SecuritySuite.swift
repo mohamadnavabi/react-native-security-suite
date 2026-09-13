@@ -825,12 +825,8 @@ class SecuritySuite: NSObject {
 
     @objc(openNetworkLogger:withRejecter:)
     func openNetworkLogger(resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
-        #if DEBUG
         PulseUINotification.presentConsole()
         resolve(true)
-        #else
-        reject("NETWORK_LOGGER_DISABLED", "Network logger is only available in debug builds", nil)
-        #endif
     }
 
     // ─── CryptoManager bridge ──────────────────────────────────────────────
