@@ -3,6 +3,7 @@ package com.securitysuite;
 import android.content.Context;
 import android.net.Uri;
 
+import com.chuckerteam.chucker.api.ChuckerCollector;
 import com.chuckerteam.chucker.api.ChuckerInterceptor;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -127,6 +128,10 @@ public class Sslpinning {
         Response response = client.newCall(request).execute();
         int responseCode = response.code();
 
+        if (isLoggerEnabled(options)) {
+          NetworkLoggerNotification.show(context, responseCode + " " + request.url().encodedPath());
+        }
+
         okhttp3.ResponseBody body = response.body();
         byte[] bytes = body != null ? body.bytes() : new byte[0];
         responseBodyString = new String(bytes, StandardCharsets.UTF_8);
@@ -200,14 +205,20 @@ public class Sslpinning {
           .writeTimeout(timeout, TimeUnit.MILLISECONDS);
     }
 
-    if (options.hasKey("loggerIsEnabled") && options.getBoolean("loggerIsEnabled")) {
+    if (isLoggerEnabled(options)) {
+      // Chucker's own notification auto-cancels; NetworkLoggerNotification keeps a persistent one instead.
       ChuckerInterceptor chuckerInterceptor = new ChuckerInterceptor.Builder(context)
+          .collector(new ChuckerCollector(context, false))
           .redactHeaders(HeaderSanitizer.SENSITIVE_HEADERS.toArray(new String[0]))
           .build();
       builder.addInterceptor(chuckerInterceptor);
     }
 
     return builder.build();
+  }
+
+  private static boolean isLoggerEnabled(ReadableMap options) {
+    return options.hasKey("loggerIsEnabled") && options.getBoolean("loggerIsEnabled");
   }
 
   private static String getHostname(String url) throws URISyntaxException {
