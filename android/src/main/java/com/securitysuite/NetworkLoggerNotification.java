@@ -13,7 +13,7 @@ import com.chuckerteam.chucker.api.Chucker;
 import com.facebook.react.bridge.ReactApplicationContext;
 
 /**
- * Persistent "Recording HTTP Activity" notification that opens Chucker when tapped.
+ * Dismissible "Recording HTTP Activity" notification that opens Chucker when tapped.
  * Android counterpart of ios/PulseUINotification.swift.
  */
 final class NetworkLoggerNotification {
@@ -56,12 +56,21 @@ final class NetworkLoggerNotification {
         .setContentTitle("Recording HTTP Activity")
         .setContentText(body)
         .setContentIntent(contentIntent)
-        .setOngoing(true)
+        .setAutoCancel(true)
         .setOnlyAlertOnce(true)
         .setShowWhen(false)
         .build();
 
     manager.notify(NOTIFICATION_ID, notification);
+  }
+
+  /** Removes the notification, e.g. once the logger has been turned off. */
+  static void cancel(Context context) {
+    NotificationManager manager =
+        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+    if (manager != null) {
+      manager.cancel(NOTIFICATION_ID);
+    }
   }
 
   private static boolean hasPermission(Context context) {

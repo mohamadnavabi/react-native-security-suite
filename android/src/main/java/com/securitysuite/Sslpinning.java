@@ -130,6 +130,8 @@ public class Sslpinning {
 
         if (isLoggerEnabled(options)) {
           NetworkLoggerNotification.show(context, responseCode + " " + request.url().encodedPath());
+        } else {
+          NetworkLoggerNotification.cancel(context);
         }
 
         okhttp3.ResponseBody body = response.body();
@@ -206,7 +208,7 @@ public class Sslpinning {
     }
 
     if (isLoggerEnabled(options)) {
-      // Chucker's own notification auto-cancels; NetworkLoggerNotification keeps a persistent one instead.
+      // Chucker's own notification is disabled; NetworkLoggerNotification shows a single one instead.
       ChuckerInterceptor chuckerInterceptor = new ChuckerInterceptor.Builder(context)
           .collector(new ChuckerCollector(context, false))
           .redactHeaders(HeaderSanitizer.SENSITIVE_HEADERS.toArray(new String[0]))
