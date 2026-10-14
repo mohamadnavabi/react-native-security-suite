@@ -162,7 +162,15 @@ export interface Options {
   body?: string | object;
   headers: Header;
   method?: 'DELETE' | 'GET' | 'POST' | 'PUT' | 'PATCH';
+  /** Seconds. */
   timeout?: number;
+  /**
+   * Allow plain `http://` URLs. Off by default: only HTTPS is sent. Refused when
+   * SSL pinning is configured, and the platform's own cleartext policy (Android
+   * network security config, iOS App Transport Security) still applies. Meant
+   * for development builds talking to a local server, e.g. `allowCleartext: __DEV__`.
+   */
+  allowCleartext?: boolean;
   /** SSL pinning configuration. Both certificates and validDomains are required together. */
   certificates?: string[];
   validDomains?: string[];
@@ -222,13 +230,13 @@ const LINKING_ERROR =
 const NativeSecuritySuiteModule = NativeModules.SecuritySuite
   ? NativeModules.SecuritySuite
   : new Proxy(
-    {},
-    {
-      get() {
-        throw new Error(LINKING_ERROR);
-      },
-    }
-  );
+      {},
+      {
+        get() {
+          throw new Error(LINKING_ERROR);
+        },
+      }
+    );
 
 function withLegacyBootstrap<T>(
   cryptoOverrides: CryptoOptions | undefined,

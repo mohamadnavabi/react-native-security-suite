@@ -97,6 +97,15 @@ class SSLPinning: NSObject, URLSessionDataDelegate {
         return scheme == "https"
     }
 
+    static func isHttpURL(_ urlString: String) -> Bool {
+        guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let scheme = url.scheme?.lowercased(),
+              let host = url.host, !host.isEmpty else {
+            return false
+        }
+        return scheme == "http"
+    }
+
     static func hostnameMatchesValidDomains(_ host: String, validDomains: [String]) -> Bool {
         let normalizedHost = host.lowercased()
         return validDomains.contains { domain in

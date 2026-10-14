@@ -558,6 +558,20 @@ await fetch('https://api.example.com/secure', {
 });
 ```
 
+### Cleartext HTTP in development
+
+The legacy `fetch` sends HTTPS only. To reach a local development server over plain HTTP — and still see the requests in the network logger — opt in per request:
+
+```typescript
+await fetch('http://192.168.1.20:8080/api/me', {
+  method: 'GET',
+  headers: {},
+  allowCleartext: __DEV__,
+});
+```
+
+`allowCleartext` is `false` by default, is refused when `certificates`/`validDomains` are set, and does not override the platform's cleartext policy: Android's network security config and iOS App Transport Security must still permit the host.
+
 ---
 
 ## Screen Protection
