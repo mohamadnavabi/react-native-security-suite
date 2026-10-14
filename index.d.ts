@@ -236,6 +236,7 @@ declare module 'react-native-security-suite' {
       headers: { [key: string]: string };
       method?: 'DELETE' | 'GET' | 'POST' | 'PUT' | 'PATCH';
       timeout?: number;
+      allowCleartext?: boolean;
       certificates?: string[];
       validDomains?: string[];
       keyId?: string;

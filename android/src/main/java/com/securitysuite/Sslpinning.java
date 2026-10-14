@@ -61,15 +61,23 @@ public class Sslpinning {
   public void fetch(String url, final ReadableMap options, SecretKey hmacKey, Callback callback) {
     this.callback = callback;
 
-    if (!CryptoUtils.isHttpsUrl(url)) {
-      callback.invoke(null, "Only HTTPS URLs are allowed");
-      return;
-    }
-
     PinningConfig pinningConfig = PinningConfig.fromOptions(options);
     if (pinningConfig.hasError()) {
       callback.invoke(null, pinningConfig.getError());
       return;
+    }
+
+    if (!CryptoUtils.isHttpsUrl(url)) {
+      // Cleartext is opt-in and never combined with pinning. When allowed, the app's
+      // network security config still decides whether the host may be reached.
+      if (!isCleartextAllowed(options) || !CryptoUtils.isHttpUrl(url)) {
+        callback.invoke(null, "Only HTTPS URLs are allowed");
+        return;
+      }
+      if (pinningConfig.isEnabled()) {
+        callback.invoke(null, "Cleartext HTTP is not allowed when SSL pinning is configured");
+        return;
+      }
     }
 
     try {
@@ -222,6 +230,12 @@ public class Sslpinning {
 
   private static boolean isLoggerEnabled(ReadableMap options) {
     return options.hasKey("loggerIsEnabled") && options.getBoolean("loggerIsEnabled");
+  }
+
+  private static boolean isCleartextAllowed(ReadableMap options) {
+    return options.hasKey("allowCleartext")
+        && options.getType("allowCleartext") == ReadableType.Boolean
+        && options.getBoolean("allowCleartext");
   }
 
   private static String getHostname(String url) throws URISyntaxException {

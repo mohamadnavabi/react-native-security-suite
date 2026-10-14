@@ -84,7 +84,7 @@ This document describes threats addressed by **react-native-security-suite** (RS
 ### T3 — Man-in-the-middle
 
 - **Risk:** Stolen session tokens, modified transactions
-- **Mitigation:** HTTPS-only fetch, SPKI pinning, backup pins, structured `SSL_PINNING_FAILED` errors
+- **Mitigation:** HTTPS-only fetch (cleartext only by explicit `allowCleartext` opt-in, never with pinning), SPKI pinning, backup pins, structured `SSL_PINNING_FAILED` errors
 - **Limitation:** Pinning fails open if misconfigured; user-installed CAs on some Android builds
 
 ### T4 — Secret exposure in JS heap

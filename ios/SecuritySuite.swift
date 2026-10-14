@@ -728,15 +728,24 @@ class SecuritySuite: NSObject {
     @objc(fetch:withData:withCallback:)
     func fetch(url: NSString, data: NSDictionary, callback: @escaping RCTResponseSenderBlock) {
         let urlString = url as String
-        guard SSLPinning.isHttpsURL(urlString) else {
-            callback([NSNull(), "Only HTTPS URLs are allowed"])
-            return
-        }
-
         let pinningConfig = PinningConfiguration(data: data)
         if let error = pinningConfig.error {
             callback([NSNull(), error])
             return
+        }
+
+        if !SSLPinning.isHttpsURL(urlString) {
+            // Cleartext is opt-in and never combined with pinning. When allowed, App
+            // Transport Security still decides whether the host may be reached.
+            let allowCleartext = (data["allowCleartext"] as? Bool) == true
+            guard allowCleartext, SSLPinning.isHttpURL(urlString) else {
+                callback([NSNull(), "Only HTTPS URLs are allowed"])
+                return
+            }
+            guard !pinningConfig.enabled else {
+                callback([NSNull(), "Cleartext HTTP is not allowed when SSL pinning is configured"])
+                return
+            }
         }
 
         guard let requestUrl = URL(string: urlString) else {

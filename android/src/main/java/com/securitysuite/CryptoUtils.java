@@ -127,6 +127,20 @@ public final class CryptoUtils {
     }
   }
 
+  public static boolean isHttpUrl(String url) {
+    if (url == null || url.isEmpty()) {
+      return false;
+    }
+    try {
+      java.net.URI uri = new java.net.URI(url.trim());
+      return "http".equalsIgnoreCase(uri.getScheme())
+          && uri.getHost() != null
+          && !uri.getHost().isEmpty();
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
   public static String normalizePinHash(String pin) {
     if (pin == null) {
       return "";
