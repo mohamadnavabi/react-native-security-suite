@@ -202,9 +202,10 @@ public class Sslpinning {
 
     if (options.hasKey("timeout")) {
       int timeout = options.getInt("timeout");
-      builder.connectTimeout(timeout, TimeUnit.MILLISECONDS)
-          .readTimeout(timeout, TimeUnit.MILLISECONDS)
-          .writeTimeout(timeout, TimeUnit.MILLISECONDS);
+      // Seconds, matching iOS (URLRequest.timeoutInterval) and the JS default of 60.
+      builder.connectTimeout(timeout, TimeUnit.SECONDS)
+          .readTimeout(timeout, TimeUnit.SECONDS)
+          .writeTimeout(timeout, TimeUnit.SECONDS);
     }
 
     if (isLoggerEnabled(options)) {
@@ -283,10 +284,12 @@ public class Sslpinning {
       return null;
     }
 
-    ReadableType bodyType = options.getType("body");
-    switch (bodyType) {
+    // OkHttp writes the body's media type over any Content-Type header, so the
+    // caller's header has to become the body's type to survive.
+    MediaType bodyType = requestMediaType(options);
+    switch (options.getType("body")) {
       case String:
-        return RequestBody.create(mediaType, options.getString("body"));
+        return RequestBody.create(bodyType, options.getString("body"));
       case Map:
         ReadableMap bodyMap = options.getMap("body");
         if (bodyMap.hasKey("formData")) {
@@ -294,11 +297,28 @@ public class Sslpinning {
         } else if (bodyMap.hasKey("_parts")) {
           return getBody(bodyMap);
         } else {
-          return RequestBody.create(mediaType, bodyMap.toString());
+          return RequestBody.create(bodyType, bodyMap.toString());
         }
       default:
         return null;
     }
+  }
+
+  private static MediaType requestMediaType(ReadableMap options) {
+    if (options.hasKey("headers") && options.getType("headers") == ReadableType.Map) {
+      ReadableMap headers = options.getMap("headers");
+      ReadableMapKeySetIterator iterator = headers.keySetIterator();
+      while (iterator.hasNextKey()) {
+        String key = iterator.nextKey();
+        if ("content-type".equalsIgnoreCase(key) && headers.getType(key) == ReadableType.String) {
+          MediaType parsed = MediaType.parse(headers.getString(key));
+          if (parsed != null) {
+            return parsed;
+          }
+        }
+      }
+    }
+    return mediaType;
   }
 
   private RequestBody getBody(ReadableMap body) {
