@@ -66,7 +66,9 @@ export default function App() {
           `Risk: ${report.riskLevel} (${report.riskScore}) · ` +
             `Root/JB: ${report.device.isRooted || report.device.isJailbroken} · ` +
             `Frida: ${report.runtime.fridaDetected} · ` +
-            `Emulator: ${report.device.isEmulator || report.device.isSimulator}`
+            `Emulator: ${report.device.isEmulator || report.device.isSimulator} · ` +
+            `VPN: ${report.network.vpnDetected} · ` +
+            `Proxy: ${report.network.proxyDetected}`
         );
 
         await SecureStorage.setItem('key', 'value');

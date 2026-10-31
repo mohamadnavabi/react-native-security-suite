@@ -826,6 +826,11 @@ class SecuritySuite: NSObject {
         resolve(EmulatorDetector.detect())
     }
 
+    @objc(networkGetEnvironment:withRejecter:)
+    func networkGetEnvironment(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        resolve(NetworkEnvironmentDetector.detect())
+    }
+
     @objc(deviceHasSecurityRisk:withRejecter:)
     func deviceHasSecurityRisk(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
         let jailbreakStatus = IOSSecuritySuite.amIJailbrokenWithFailMessage()

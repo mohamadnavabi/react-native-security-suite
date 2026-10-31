@@ -16,6 +16,10 @@ export interface ProtectionPolicy {
   blockHooking?: boolean;
   /** Block rooted (Android) or jailbroken (iOS) devices. Default: false */
   blockRoot?: boolean;
+  /** Block when a VPN is active. Many legitimate users run one. Default: false */
+  blockVpn?: boolean;
+  /** Block when a system proxy is configured. Corporate networks often set one. Default: false */
+  blockProxy?: boolean;
   /** Throw when computed risk level meets or exceeds this threshold. Default: undefined (disabled) */
   minRiskLevel?: RiskLevel;
 }
@@ -23,13 +27,20 @@ export interface ProtectionPolicy {
 export const DEFAULT_PROTECTION_POLICY: Required<
   Pick<
     ProtectionPolicy,
-    'blockEmulator' | 'blockDebugger' | 'blockHooking' | 'blockRoot'
+    | 'blockEmulator'
+    | 'blockDebugger'
+    | 'blockHooking'
+    | 'blockRoot'
+    | 'blockVpn'
+    | 'blockProxy'
   >
 > = {
   blockEmulator: true,
   blockDebugger: true,
   blockHooking: true,
   blockRoot: false,
+  blockVpn: false,
+  blockProxy: false,
 };
 
 const RISK_LEVEL_ORDER: Record<RiskLevel, number> = {
@@ -136,6 +147,22 @@ export function enforceProtection(
         { device: report.device }
       );
     }
+  }
+
+  if (resolved.blockVpn && report.network.vpnDetected) {
+    throw new SecurityError(
+      SecurityErrorCode.VPN_DETECTED,
+      'Active VPN connection detected',
+      { network: report.network }
+    );
+  }
+
+  if (resolved.blockProxy && report.network.proxyDetected) {
+    throw new SecurityError(
+      SecurityErrorCode.PROXY_DETECTED,
+      'System proxy configuration detected',
+      { network: report.network }
+    );
   }
 
   if (policy.minRiskLevel) {

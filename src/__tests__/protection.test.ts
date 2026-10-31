@@ -27,6 +27,11 @@ const cleanReport: SecurityReport = {
     tampered: false,
     buildType: 'release',
   },
+  network: {
+    vpnDetected: false,
+    proxyDetected: false,
+    indicators: [],
+  },
   riskScore: 0,
   riskLevel: 'low',
 };
@@ -67,6 +72,8 @@ describe('enforceProtection', () => {
     expect(DEFAULT_PROTECTION_POLICY.blockDebugger).toBe(true);
     expect(DEFAULT_PROTECTION_POLICY.blockHooking).toBe(true);
     expect(DEFAULT_PROTECTION_POLICY.blockRoot).toBe(false);
+    expect(DEFAULT_PROTECTION_POLICY.blockVpn).toBe(false);
+    expect(DEFAULT_PROTECTION_POLICY.blockProxy).toBe(false);
   });
 
   it('throws EMULATOR_DETECTED for simulator environments', () => {
@@ -125,6 +132,56 @@ describe('enforceProtection', () => {
         SecurityErrorCode.XPOSED_DETECTED
       );
     }
+  });
+
+  describe('VPN and proxy', () => {
+    const vpnReport: SecurityReport = {
+      ...cleanReport,
+      network: {
+        vpnDetected: true,
+        proxyDetected: false,
+        indicators: ['transport:vpn'],
+      },
+    };
+    const proxyReport: SecurityReport = {
+      ...cleanReport,
+      network: {
+        vpnDetected: false,
+        proxyDetected: true,
+        indicators: ['proxy:http'],
+      },
+    };
+
+    it('allows VPNs and proxies unless the policy opts in', () => {
+      expect(() => enforceProtection(vpnReport)).not.toThrow();
+      expect(() => enforceProtection(proxyReport)).not.toThrow();
+      expect(() =>
+        enforceProtection(vpnReport, { blockProxy: true })
+      ).not.toThrow();
+      expect(() =>
+        enforceProtection(proxyReport, { blockVpn: true })
+      ).not.toThrow();
+    });
+
+    it('throws VPN_DETECTED when blockVpn is set', () => {
+      expect(() => enforceProtection(vpnReport, { blockVpn: true })).toThrow(
+        expect.objectContaining({
+          code: SecurityErrorCode.VPN_DETECTED,
+          details: { network: vpnReport.network },
+        })
+      );
+    });
+
+    it('throws PROXY_DETECTED when blockProxy is set', () => {
+      expect(() =>
+        enforceProtection(proxyReport, { blockProxy: true })
+      ).toThrow(
+        expect.objectContaining({
+          code: SecurityErrorCode.PROXY_DETECTED,
+          details: { network: proxyReport.network },
+        })
+      );
+    });
   });
 
   it('throws SECURITY_RISK_THRESHOLD when configured', () => {

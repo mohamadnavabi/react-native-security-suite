@@ -75,6 +75,8 @@ export enum SecurityErrorCode {
   MAGISK_DETECTED = 'MAGISK_DETECTED',
   DEBUGGER_DETECTED = 'DEBUGGER_DETECTED',
   EMULATOR_DETECTED = 'EMULATOR_DETECTED',
+  VPN_DETECTED = 'VPN_DETECTED',
+  PROXY_DETECTED = 'PROXY_DETECTED',
   SECURITY_RISK_THRESHOLD = 'SECURITY_RISK_THRESHOLD',
   SSL_PINNING_FAILED = 'SSL_PINNING_FAILED',
   SECURE_STORAGE_UNAVAILABLE = 'SECURE_STORAGE_UNAVAILABLE',
@@ -116,6 +118,12 @@ export interface DeviceEnvironment {
   indicators: string[];
 }
 
+export interface NetworkEnvironment {
+  vpnDetected: boolean;
+  proxyDetected: boolean;
+  indicators: string[];
+}
+
 export type RiskLevel = 'low' | 'medium' | 'high';
 
 export interface ProtectionPolicy {
@@ -123,6 +131,8 @@ export interface ProtectionPolicy {
   blockDebugger?: boolean;
   blockHooking?: boolean;
   blockRoot?: boolean;
+  blockVpn?: boolean;
+  blockProxy?: boolean;
   minRiskLevel?: RiskLevel;
 }
 
@@ -184,6 +194,7 @@ export interface SecurityReport {
   };
   runtime: RuntimeThreatReport;
   app: AppIntegrityReport;
+  network: NetworkEnvironment;
   riskScore: number;
   riskLevel: RiskLevel;
 }
@@ -271,6 +282,11 @@ declare module 'react-native-security-suite' {
       policy?: Pick<ProtectionPolicy, 'blockDebugger' | 'blockHooking'>
     ): Promise<RuntimeThreatReport>;
   };
+  const NetworkSecurity: {
+    getEnvironment(): Promise<NetworkEnvironment>;
+    isVpnActive(): Promise<boolean>;
+    isProxyEnabled(): Promise<boolean>;
+  };
   const AppIntegrity: {
     verify(): Promise<AppIntegrityReport>;
   };
@@ -295,7 +311,12 @@ declare module 'react-native-security-suite' {
   const DEFAULT_PROTECTION_POLICY: Required<
     Pick<
       ProtectionPolicy,
-      'blockEmulator' | 'blockDebugger' | 'blockHooking' | 'blockRoot'
+      | 'blockEmulator'
+      | 'blockDebugger'
+      | 'blockHooking'
+      | 'blockRoot'
+      | 'blockVpn'
+      | 'blockProxy'
     >
   >;
   function enforceProtection(

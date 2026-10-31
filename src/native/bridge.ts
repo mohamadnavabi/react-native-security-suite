@@ -38,6 +38,7 @@ export interface SecuritySuiteNativeModule {
   runtimeDetect(): Promise<Record<string, unknown>>;
   appIntegrityVerify(): Promise<Record<string, unknown>>;
   deviceGetEnvironment(): Promise<Record<string, unknown>>;
+  networkGetEnvironment(): Promise<Record<string, unknown>>;
   deviceHasSecurityRisk(): Promise<boolean>;
 
   // ─── CryptoManager ───────────────────────────────────────────────────────

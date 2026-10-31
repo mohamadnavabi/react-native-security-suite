@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 import { AppIntegrity } from '../integrity';
 import { DeviceSecurity } from '../device';
+import { NetworkSecurity } from '../network';
 import { RuntimeSecurity } from '../runtime';
 import {
   configureSecuritySuiteBehavior,
@@ -33,12 +34,14 @@ export const SecuritySuite = {
   },
 
   async getSecurityReport(): Promise<SecurityReport> {
-    const [runtime, app, environment, isCompromised] = await Promise.all([
-      RuntimeSecurity.detect(),
-      AppIntegrity.verify(),
-      DeviceSecurity.getEnvironment(),
-      DeviceSecurity.isCompromised(),
-    ]);
+    const [runtime, app, environment, isCompromised, network] =
+      await Promise.all([
+        RuntimeSecurity.detect(),
+        AppIntegrity.verify(),
+        DeviceSecurity.getEnvironment(),
+        DeviceSecurity.isCompromised(),
+        NetworkSecurity.getEnvironment(),
+      ]);
 
     const isRooted = Platform.OS === 'android' && isCompromised;
     const isJailbroken = Platform.OS === 'ios' && isCompromised;
@@ -61,6 +64,7 @@ export const SecuritySuite = {
       },
       runtime,
       app,
+      network,
       riskScore,
       riskLevel,
     };

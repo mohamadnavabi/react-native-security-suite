@@ -1,5 +1,6 @@
 import { NativeModules } from 'react-native';
 
+import { SecurityErrorCode } from '../errors';
 import { SecuritySuite } from '../securitySuite';
 
 describe('SecuritySuite.getSecurityReport', () => {
@@ -23,6 +24,11 @@ describe('SecuritySuite.getSecurityReport', () => {
         indicators: [],
       }),
       deviceHasSecurityRisk: jest.fn().mockResolvedValue(false),
+      networkGetEnvironment: jest.fn().mockResolvedValue({
+        vpnDetected: true,
+        proxyDetected: false,
+        indicators: ['transport:vpn'],
+      }),
     };
   });
 
@@ -33,7 +39,24 @@ describe('SecuritySuite.getSecurityReport', () => {
     expect(report.device.isJailbroken).toBe(false);
     expect(report.runtime.fridaDetected).toBe(false);
     expect(report.app.validSignature).toBe(true);
+    expect(report.network).toEqual({
+      vpnDetected: true,
+      proxyDetected: false,
+      indicators: ['transport:vpn'],
+    });
+  });
+
+  it('does not count a VPN or proxy towards the risk score', async () => {
+    const report = await SecuritySuite.getSecurityReport();
+
     expect(report.riskScore).toBe(0);
     expect(report.riskLevel).toBe('low');
+  });
+
+  it('enforces blockVpn through protect()', async () => {
+    await expect(SecuritySuite.protect()).resolves.toBeDefined();
+    await expect(SecuritySuite.protect({ blockVpn: true })).rejects.toThrow(
+      expect.objectContaining({ code: SecurityErrorCode.VPN_DETECTED })
+    );
   });
 });

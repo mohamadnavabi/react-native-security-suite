@@ -122,6 +122,7 @@ export type {
   AppIntegrityReport,
   DeviceEnvironment,
   DeviceSecurityReport,
+  NetworkEnvironment,
   SecurityReport,
   RiskLevel,
   BuildType,

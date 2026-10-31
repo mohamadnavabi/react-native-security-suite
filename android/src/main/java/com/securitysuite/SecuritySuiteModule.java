@@ -47,6 +47,7 @@ import com.scottyab.rootbeer.RootBeer;
 import com.securitysuite.crypto.CryptoManager;
 import com.securitysuite.security.AppIntegrityChecker;
 import com.securitysuite.security.EmulatorDetector;
+import com.securitysuite.security.NetworkEnvironmentDetector;
 import com.securitysuite.security.PlayIntegrityHelper;
 import com.securitysuite.security.RuntimeDetector;
 
@@ -591,6 +592,15 @@ public class SecuritySuiteModule extends ReactContextBaseJavaModule {
       promise.resolve(EmulatorDetector.detect(context));
     } catch (Exception e) {
       promise.reject("DEVICE_ENVIRONMENT_ERROR", e.getMessage(), e);
+    }
+  }
+
+  @ReactMethod
+  public void networkGetEnvironment(Promise promise) {
+    try {
+      promise.resolve(NetworkEnvironmentDetector.detect(context));
+    } catch (Exception e) {
+      promise.reject("NETWORK_ENVIRONMENT_ERROR", e.getMessage(), e);
     }
   }
 
