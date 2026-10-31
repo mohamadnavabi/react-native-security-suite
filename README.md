@@ -41,6 +41,7 @@ Comprehensive mobile security for React Native — detection, cryptography, secu
 - Emulator/simulator detection with environment indicators
 - Debugger detection (`P_TRACED`, TracerPid)
 - Hooking detection — Frida, Xposed/LSPosed, Substrate, Magisk
+- VPN and system proxy detection
 - Continuous threat monitoring with configurable callbacks
 - Composite risk scoring (`low` / `medium` / `high`)
 - `SecuritySuite.protect()` — throws `SecurityError` on policy violations
@@ -177,12 +178,13 @@ const report = await SecuritySuite.getSecurityReport();
 // report.device.isRooted, .isJailbroken, .isEmulator, .isSimulator
 // report.runtime.debuggerAttached, .fridaDetected, .xposedDetected, …
 // report.app.validSignature, .tampered, .buildType
+// report.network.vpnDetected, .proxyDetected, .indicators
 ```
 
 ### Targeted checks
 
 ```typescript
-import { DeviceSecurity, RuntimeSecurity, AppIntegrity } from 'react-native-security-suite';
+import { DeviceSecurity, RuntimeSecurity, AppIntegrity, NetworkSecurity } from 'react-native-security-suite';
 
 const isCompromised = await DeviceSecurity.isCompromised();     // root / jailbreak
 const isEmulator   = await DeviceSecurity.isEmulator();
@@ -192,6 +194,10 @@ const isDebugged   = await RuntimeSecurity.isDebuggerAttached();
 const isHooked     = await RuntimeSecurity.isHooked();          // Frida / Xposed / Substrate / Magisk
 
 const integrity    = await AppIntegrity.verify();               // { validSignature, tampered, buildType, … }
+
+const isVpn        = await NetworkSecurity.isVpnActive();
+const isProxy      = await NetworkSecurity.isProxyEnabled();
+const network      = await NetworkSecurity.getEnvironment();    // { vpnDetected, proxyDetected, indicators }
 ```
 
 ### Policy enforcement
@@ -207,6 +213,8 @@ try {
     blockDebugger: true,
     blockHooking: true,
     blockRoot: true,
+    blockVpn: true,       // opt-in, default false
+    blockProxy: true,     // opt-in, default false
     minRiskLevel: 'high', // also throw when riskLevel >= 'high'
   });
 } catch (err) {
@@ -225,6 +233,10 @@ try {
 | Emulator | Build props, QEMU, sensors, telephony | `TARGET_OS_SIMULATOR`, hw.model, IOSSecuritySuite |
 | Debugger | `Debug.isDebuggerConnected`, TracerPid | `P_TRACED` sysctl, IOSSecuritySuite |
 | Hooking | `/proc/self/maps`, Frida ports/threads, Xposed, Magisk | Dyld inserts, loaded dylibs, Frida paths, Substrate |
+| VPN | `TRANSPORT_VPN` on the active network, `tun`/`wg`/`pptp` interfaces | `__SCOPED__` interfaces in the system proxy settings |
+| Proxy | Default proxy (HTTP or PAC), proxy system properties | System proxy settings (HTTP, HTTPS, SOCKS, PAC) |
+
+VPN and proxy use is common among legitimate users, so `blockVpn` and `blockProxy` default to `false` and neither signal affects `riskScore`. Indicators name the signal only, never the proxy host or PAC URL. Results are heuristic: a transparent proxy or a VPN running on a router can't be seen from the device, and on iOS the VPN check relies on an undocumented settings key. Enforce anything sensitive server-side. On Android, the library adds the `ACCESS_NETWORK_STATE` permission.
 
 ---
 
@@ -807,6 +819,9 @@ Extends `SecureStorage` with biometric options, expiry, and rotation. All method
 
 | Method | Description |
 |--------|-------------|
+| `getEnvironment()` | `{ vpnDetected, proxyDetected, indicators }`. |
+| `isVpnActive()` | `true` when a VPN is active. |
+| `isProxyEnabled()` | `true` when a system proxy is configured. |
 | `configurePinning(config)` | Set a global `PinningConfig` used by `installFetchInterceptor`. |
 | `clearPinningConfig()` | Remove the global config. |
 | `installFetchInterceptor(config?)` | Patch `global.fetch`. Returns an uninstall function. |
@@ -851,6 +866,7 @@ import { SecurityError, SecurityErrorCode, isSecurityError } from 'react-native-
 
 // SecurityErrorCode values:
 // ROOT_DETECTED, JAILBREAK_DETECTED, EMULATOR_DETECTED
+// VPN_DETECTED, PROXY_DETECTED
 // DEBUGGER_DETECTED, FRIDA_DETECTED, XPOSED_DETECTED, SUBSTRATE_DETECTED, MAGISK_DETECTED
 // SECURITY_RISK_THRESHOLD, SSL_PINNING_FAILED
 // BIOMETRIC_UNAVAILABLE, BIOMETRIC_AUTH_FAILED

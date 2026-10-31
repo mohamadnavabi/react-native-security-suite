@@ -49,6 +49,8 @@ RCT_EXTERN_METHOD(appIntegrityVerify:(RCTPromiseResolveBlock)resolve withRejecte
 
 RCT_EXTERN_METHOD(deviceGetEnvironment:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(networkGetEnvironment:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(cryptoHash:(NSString)input withAlgorithm:(NSString)algorithm withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(cryptoDeriveKeys:(NSDictionary)params withResolver:(RCTPromiseResolveBlock)resolve withRejecter:(RCTPromiseRejectBlock)reject)

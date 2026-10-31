@@ -1,5 +1,21 @@
 import { NativeModules } from 'react-native';
 import { jsonParse } from '../helpers';
+import { getNativeModule } from '../native/bridge';
+import type { NetworkEnvironment } from '../types/detection';
+
+function parseNetworkEnvironment(
+  raw: Record<string, unknown>
+): NetworkEnvironment {
+  return {
+    vpnDetected: Boolean(raw.vpnDetected),
+    proxyDetected: Boolean(raw.proxyDetected),
+    indicators: Array.isArray(raw.indicators)
+      ? raw.indicators.filter(
+          (item): item is string => typeof item === 'string'
+        )
+      : [],
+  };
+}
 
 export interface PinningConfig {
   /** Base64-encoded SPKI SHA-256 hashes (with or without the `sha256/` prefix). */
@@ -56,6 +72,23 @@ function nativeFetch(
 }
 
 export const NetworkSecurity = {
+  /** Report whether a VPN or proxy is active on the device right now. */
+  getEnvironment(): Promise<NetworkEnvironment> {
+    return getNativeModule()
+      .networkGetEnvironment()
+      .then((result) => parseNetworkEnvironment(result));
+  },
+
+  async isVpnActive(): Promise<boolean> {
+    const environment = await NetworkSecurity.getEnvironment();
+    return environment.vpnDetected;
+  },
+
+  async isProxyEnabled(): Promise<boolean> {
+    const environment = await NetworkSecurity.getEnvironment();
+    return environment.proxyDetected;
+  },
+
   /**
    * Store a global pinning config used by `installFetchInterceptor()` and
    * `createPinnedFetch()` when no per-call config is provided.
@@ -128,3 +161,5 @@ export const NetworkSecurity = {
       });
   },
 };
+
+export type { NetworkEnvironment };

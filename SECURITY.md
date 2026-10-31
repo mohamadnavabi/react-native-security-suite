@@ -59,6 +59,8 @@ All security failures use structured `SecurityError` with stable `code`:
 | `JAILBREAK_DETECTED` | iOS jailbreak indicators present |
 | `FRIDA_DETECTED` | Frida/instrumentation detected |
 | `EMULATOR_DETECTED` | Running in emulator/simulator |
+| `VPN_DETECTED` | Active VPN, with `blockVpn` enabled |
+| `PROXY_DETECTED` | System proxy configured, with `blockProxy` enabled |
 | `APP_TAMPERED` | Signature/installer mismatch |
 | `SSL_PINNING_FAILED` | Certificate pin mismatch |
 | `SECURE_STORAGE_UNAVAILABLE` | Keystore/Keychain failure |

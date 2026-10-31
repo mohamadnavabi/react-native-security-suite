@@ -86,6 +86,7 @@ export const DeviceSecurity = {
           tampered: false,
           buildType: 'release',
         },
+        network: { vpnDetected: false, proxyDetected: false, indicators: [] },
         riskScore: 0,
         riskLevel: 'low',
       } satisfies SecurityReport,

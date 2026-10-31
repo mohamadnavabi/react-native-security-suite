@@ -27,6 +27,13 @@ export interface DeviceEnvironment {
   indicators: string[];
 }
 
+export interface NetworkEnvironment {
+  vpnDetected: boolean;
+  proxyDetected: boolean;
+  /** Which signals fired, e.g. `transport:vpn`, `interface:utun3`, `proxy:http`. */
+  indicators: string[];
+}
+
 export interface DeviceSecurityReport {
   isRooted: boolean;
   isJailbroken: boolean;
@@ -41,6 +48,7 @@ export interface SecurityReport {
   device: DeviceSecurityReport;
   runtime: RuntimeThreatReport;
   app: AppIntegrityReport;
+  network: NetworkEnvironment;
   riskScore: number;
   riskLevel: RiskLevel;
 }
