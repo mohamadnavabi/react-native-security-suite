@@ -131,6 +131,7 @@ public class Sslpinning {
 
       Request request = requestBuilder.build();
       WritableMap output = Arguments.createMap();
+      String devToolsRequestId = isLoggerEnabled(options) ? NetworkInspector.reportRequestStart(request) : null;
 
       try {
         Response response = client.newCall(request).execute();
@@ -145,6 +146,7 @@ public class Sslpinning {
         okhttp3.ResponseBody body = response.body();
         byte[] bytes = body != null ? body.bytes() : new byte[0];
         responseBodyString = new String(bytes, StandardCharsets.UTF_8);
+        NetworkInspector.reportResponse(devToolsRequestId, response, responseBodyString, bytes.length);
 
         output.putInt("status", responseCode);
         output.putString("url", request.url().toString());
@@ -161,6 +163,7 @@ public class Sslpinning {
         output.putString("response", responseBodyString);
         callback.invoke(output, null);
       } catch (IOException e) {
+        NetworkInspector.reportRequestFailed(devToolsRequestId);
         output.putString("error", e.getMessage() != null ? e.getMessage() : responseBodyString);
         callback.invoke(null, output);
         if (!(e instanceof SocketTimeoutException)) {

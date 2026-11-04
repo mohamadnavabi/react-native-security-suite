@@ -77,6 +77,7 @@ class SSLPinning: NSObject, URLSessionDataDelegate {
     var networkLogger: NetworkLogger = .init()
     var responseData: Data = Data()
     let pulseNotification = PulseUINotification()
+    let devToolsRequestId = "security-suite-" + UUID().uuidString
 
     init(url: NSString, data: NSDictionary, callback: @escaping RCTResponseSenderBlock) {
         self.url = url
@@ -182,14 +183,40 @@ class SSLPinning: NSObject, URLSessionDataDelegate {
         completionHandler(.useCredential, URLCredential(trust: trust))
     }
 
+    func reportRequestStartToDevTools(_ request: URLRequest) {
+        guard loggerEnabled else { return }
+        var sanitizedRequest = request
+        sanitizedRequest.allHTTPHeaderFields = Self.sanitizedHeaders(request.allHTTPHeaderFields ?? [:])
+        SecuritySuiteNetworkInspector.reportRequestStart(devToolsRequestId, request: sanitizedRequest)
+    }
+
     func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
         guard loggerEnabled else { return }
         networkLogger.logTaskCreated(task)
     }
 
+    func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        if loggerEnabled {
+            let httpResponse = response as? HTTPURLResponse
+            SecuritySuiteNetworkInspector.reportResponseStart(
+                devToolsRequestId,
+                response: response,
+                statusCode: httpResponse?.statusCode ?? 200,
+                headers: Self.sanitizedHeaders(httpResponse?.allHeaderFields ?? [:])
+            )
+        }
+        completionHandler(.allow)
+    }
+
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         if loggerEnabled {
             networkLogger.logDataTask(dataTask, didReceive: data)
+            SecuritySuiteNetworkInspector.reportDataReceived(devToolsRequestId, data: data)
         }
         responseData.append(data)
     }
@@ -197,6 +224,11 @@ class SSLPinning: NSObject, URLSessionDataDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if loggerEnabled {
             networkLogger.logTask(task, didCompleteWithError: error)
+            if error != nil {
+                SecuritySuiteNetworkInspector.reportRequestFailed(devToolsRequestId)
+            } else {
+                SecuritySuiteNetworkInspector.reportResponseEnd(devToolsRequestId, body: responseData)
+            }
         }
 
         if let error = error {
