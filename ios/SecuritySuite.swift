@@ -799,6 +799,7 @@ class SecuritySuite: NSObject {
 
         let sslPinning = SSLPinning(url: url, data: data, callback: callback)
         let session = URLSession(configuration: configuration, delegate: sslPinning, delegateQueue: .main)
+        sslPinning.reportRequestStartToDevTools(request)
         session.dataTask(with: request).resume()
     }
 
