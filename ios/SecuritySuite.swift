@@ -756,7 +756,10 @@ class SecuritySuite: NSObject {
         if pinningConfig.enabled {
             let host = requestUrl.host ?? ""
             guard pinningConfig.isPinned(host: host) else {
-                callback([NSNull(), "Hostname '\(host)' is not in the SSL pinning domains"])
+                callback([NSNull(), [
+                    "error": "Hostname '\(host)' is not in the SSL pinning domains",
+                    "networkError": "SSL_PEER_UNVERIFIED",
+                ]])
                 return
             }
         }

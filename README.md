@@ -574,6 +574,31 @@ await fetch('https://api.example.com/secure', {
 
 The older `certificates` + `validDomains` pair still works. It applies every pin to every listed domain and its subdomains, so prefer `pinnedDomains` whenever your hosts use different keys. See [docs/ssl-pinning.md](docs/ssl-pinning.md) for matching rules, redirects, and how to extract pins.
 
+### Handling transport failures
+
+When a request fails before any HTTP response arrives, the rejection carries `networkError` (and `status` is `0`):
+
+| `networkError` | Android | iOS |
+|---|---|---|
+| `UNKNOWN_HOST` | `UnknownHostException` | `cannotFindHost`, `dnsLookupFailed` |
+| `SSL_PEER_UNVERIFIED` | `SSLPeerUnverifiedException` (pin mismatch, host outside the pinning domains) | pin mismatch, host outside the pinning domains |
+| `SSL_HANDSHAKE` | `SSLHandshakeException` | `secureConnectionFailed`, `serverCertificate*`, `clientCertificate*` |
+| `TIMEOUT` | `SocketTimeoutException` | `timedOut` |
+| `NETWORK` | any other `IOException` | any other error |
+
+HTTP error responses never set it, so a server body can't spoof it. For example, to move to a backup domain when the primary can't be reached:
+
+```typescript
+try {
+  return await fetch(url, options);
+} catch (error: any) {
+  if (['UNKNOWN_HOST', 'SSL_HANDSHAKE', 'SSL_PEER_UNVERIFIED'].includes(error.networkError)) {
+    return fetch(url.replace('api.example.com', 'api.example.net'), options);
+  }
+  throw error;
+}
+```
+
 ### Cleartext HTTP in development
 
 The legacy `fetch` sends HTTPS only. To reach a local development server over plain HTTP — and still see the requests in the network logger — opt in per request:

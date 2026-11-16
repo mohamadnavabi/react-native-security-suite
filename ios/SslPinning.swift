@@ -149,12 +149,12 @@ class SSLPinning: NSObject, URLSessionDataDelegate {
         }
 
         if let failure = pinningFailure {
-            callback([NSNull(), failure])
+            callback([NSNull(), ["error": failure, "networkError": "SSL_PEER_UNVERIFIED"]])
             return
         }
 
         if let error = error {
-            callback([NSNull(), error.localizedDescription])
+            callback([NSNull(), ["error": error.localizedDescription, "networkError": Self.networkError(error)]])
             return
         }
 
@@ -191,6 +191,26 @@ class SSLPinning: NSObject, URLSessionDataDelegate {
         if let httpResponse = task.response as? HTTPURLResponse,
            let responseURL = URL(string: httpResponse.url?.absoluteString ?? (url as String)) {
             pulseNotification.showNotification(body: "\(httpResponse.statusCode) \(responseURL.relativePath)")
+        }
+    }
+
+    static func networkError(_ error: Error) -> String {
+        guard let urlError = error as? URLError else { return "NETWORK" }
+        switch urlError.code {
+        case .cannotFindHost, .dnsLookupFailed:
+            return "UNKNOWN_HOST"
+        case .secureConnectionFailed,
+             .serverCertificateHasBadDate,
+             .serverCertificateUntrusted,
+             .serverCertificateHasUnknownRoot,
+             .serverCertificateNotYetValid,
+             .clientCertificateRejected,
+             .clientCertificateRequired:
+            return "SSL_HANDSHAKE"
+        case .timedOut:
+            return "TIMEOUT"
+        default:
+            return "NETWORK"
         }
     }
 

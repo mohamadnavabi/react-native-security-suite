@@ -205,11 +205,19 @@ export interface SuccessResponse extends Response {
   responseJSON: Promise<{ [key: string]: any }>;
 }
 
+export type NetworkErrorType =
+  | 'UNKNOWN_HOST'
+  | 'SSL_PEER_UNVERIFIED'
+  | 'SSL_HANDSHAKE'
+  | 'TIMEOUT'
+  | 'NETWORK';
+
 export interface ErrorResponse extends Response {
   error: string;
   path: string;
   message: string;
   code: string;
+  networkError?: NetworkErrorType;
 }
 
 export interface FetchEventResponse {
@@ -540,11 +548,16 @@ export function fetch(
                 json: () => jsonParse(result.response),
               });
             } else {
-              const errorJson = jsonParse(
+              const body =
                 typeof error?.error === 'string'
-                  ? error.error
-                  : JSON.stringify(error)
-              );
+                  ? jsonParse(error.error)
+                  : error;
+              const errorJson =
+                body !== null &&
+                typeof body === 'object' &&
+                !Array.isArray(body)
+                  ? body
+                  : {};
               reject({
                 json: () => errorJson,
                 error: error?.error ?? error,
@@ -555,6 +568,7 @@ export function fetch(
                 code: errorJson?.code ?? '',
                 duration: error?.duration ?? '',
                 ...errorJson,
+                networkError: error?.networkError,
               });
             }
           }

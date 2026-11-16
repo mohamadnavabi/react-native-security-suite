@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -33,6 +34,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLPeerUnverifiedException;
 
 import okhttp3.CertificatePinner;
 import okhttp3.Headers;
@@ -98,7 +101,10 @@ public class Sslpinning {
       }
       pinner = pinning.toCertificatePinner();
       if (!PinningPolicy.isPinned(pinner, httpUrl.host())) {
-        callback.invoke(null, "Hostname '" + httpUrl.host() + "' is not in the SSL pinning domains");
+        WritableMap error = Arguments.createMap();
+        error.putString("error", "Hostname '" + httpUrl.host() + "' is not in the SSL pinning domains");
+        error.putString("networkError", "SSL_PEER_UNVERIFIED");
+        callback.invoke(null, error);
         return;
       }
     }
@@ -176,6 +182,7 @@ public class Sslpinning {
       } catch (IOException e) {
         NetworkInspector.reportRequestFailed(devToolsRequestId);
         output.putString("error", e.getMessage() != null ? e.getMessage() : responseBodyString);
+        output.putString("networkError", networkError(e));
         callback.invoke(null, output);
         if (!(e instanceof SocketTimeoutException)) {
           e.printStackTrace();
@@ -187,6 +194,22 @@ public class Sslpinning {
     } catch (Exception e) {
       callback.invoke(null, e.getMessage() != null ? e.getMessage() : "Request failed");
     }
+  }
+
+  static String networkError(IOException e) {
+    if (e instanceof UnknownHostException) {
+      return "UNKNOWN_HOST";
+    }
+    if (e instanceof SSLPeerUnverifiedException) {
+      return "SSL_PEER_UNVERIFIED";
+    }
+    if (e instanceof SSLHandshakeException) {
+      return "SSL_HANDSHAKE";
+    }
+    if (e instanceof SocketTimeoutException) {
+      return "TIMEOUT";
+    }
+    return "NETWORK";
   }
 
   private byte[] extractPayload(RequestBody requestBody) throws IOException {
