@@ -77,7 +77,12 @@ export { ThreatMonitor } from './monitoring';
 export type { ThreatMonitorOptions, ThreatMonitorHandle } from './monitoring';
 
 export { NetworkSecurity } from './network';
-export type { PinningConfig, NetworkFetchOptions } from './network';
+export type {
+  PinningConfig,
+  PinnedDomain,
+  NetworkFetchOptions,
+} from './network';
+import type { PinningConfig, PinnedDomain } from './network';
 
 import {
   assertKey,
@@ -148,12 +153,7 @@ export interface LegacyJwsHeaders {
   [key: string]: string;
 }
 
-export interface SslPinningOptions {
-  /** Base64-encoded SPKI SHA-256 hashes (with or without `sha256/` prefix). */
-  certificates: string[];
-  /** Allowed hostnames. Request host must match one of these before pinning is evaluated. */
-  validDomains: string[];
-}
+export type SslPinningOptions = PinningConfig;
 
 interface Header {
   [key: string]: string;
@@ -172,8 +172,14 @@ export interface Options {
    * for development builds talking to a local server, e.g. `allowCleartext: __DEV__`.
    */
   allowCleartext?: boolean;
-  /** SSL pinning configuration. Both certificates and validDomains are required together. */
+  /**
+   * Per-domain SSL pinning: each host gets its own SPKI SHA-256 pins. Once any pinning
+   * option is set, requests and redirects to hosts outside the pinned domains fail.
+   */
+  pinnedDomains?: PinnedDomain[];
+  /** Pins shared by every domain in `validDomains` (and their subdomains). Requires `validDomains`. */
   certificates?: string[];
+  /** Domains that accept every pin in `certificates`. Requires `certificates`. */
   validDomains?: string[];
   /** @deprecated Use `jws` instead. */
   keyId?: string;

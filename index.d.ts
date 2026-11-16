@@ -61,9 +61,16 @@ export interface JwsFetchOptions {
   headerName?: string;
 }
 
+export interface PinnedDomain {
+  domain: string;
+  pins: string[];
+  includeSubdomains?: boolean;
+}
+
 export interface SslPinningOptions {
-  certificates: string[];
-  validDomains: string[];
+  pinnedDomains?: PinnedDomain[];
+  certificates?: string[];
+  validDomains?: string[];
 }
 
 export enum SecurityErrorCode {
@@ -248,6 +255,7 @@ declare module 'react-native-security-suite' {
       method?: 'DELETE' | 'GET' | 'POST' | 'PUT' | 'PATCH';
       timeout?: number;
       allowCleartext?: boolean;
+      pinnedDomains?: PinnedDomain[];
       certificates?: string[];
       validDomains?: string[];
       keyId?: string;

@@ -36,6 +36,7 @@ import javax.crypto.SecretKey;
 
 import okhttp3.CertificatePinner;
 import okhttp3.Headers;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.Request;
@@ -47,7 +48,6 @@ import okio.Buffer;
 
 public class Sslpinning {
   private final ReactApplicationContext context;
-  private String hostname = "";
   private static final String CONTENT_TYPE = "application/json; charset=utf-8";
   public static final MediaType mediaType = MediaType.parse(CONTENT_TYPE);
   String responseBodyString = "{}";
@@ -61,9 +61,11 @@ public class Sslpinning {
   public void fetch(String url, final ReadableMap options, SecretKey hmacKey, Callback callback) {
     this.callback = callback;
 
-    PinningConfig pinningConfig = PinningConfig.fromOptions(options);
-    if (pinningConfig.hasError()) {
-      callback.invoke(null, pinningConfig.getError());
+    PinningPolicy pinning;
+    try {
+      pinning = PinningPolicy.fromOptions(options);
+    } catch (IllegalArgumentException e) {
+      callback.invoke(null, e.getMessage());
       return;
     }
 
@@ -74,26 +76,35 @@ public class Sslpinning {
         callback.invoke(null, "Only HTTPS URLs are allowed");
         return;
       }
-      if (pinningConfig.isEnabled()) {
+      if (pinning.isEnabled()) {
         callback.invoke(null, "Cleartext HTTP is not allowed when SSL pinning is configured");
         return;
       }
     }
 
     try {
-      this.hostname = getHostname(url);
+      getHostname(url);
     } catch (URISyntaxException e) {
       callback.invoke(null, "Invalid URL hostname");
       return;
     }
 
-    if (pinningConfig.isEnabled() && !isValidDomain(this.hostname, options)) {
-      callback.invoke(null, "Hostname '" + this.hostname + "' is not in validDomains");
-      return;
+    CertificatePinner pinner = null;
+    if (pinning.isEnabled()) {
+      HttpUrl httpUrl = HttpUrl.parse(url);
+      if (httpUrl == null) {
+        callback.invoke(null, "Invalid URL hostname");
+        return;
+      }
+      pinner = pinning.toCertificatePinner();
+      if (!PinningPolicy.isPinned(pinner, httpUrl.host())) {
+        callback.invoke(null, "Hostname '" + httpUrl.host() + "' is not in the SSL pinning domains");
+        return;
+      }
     }
 
     try {
-      OkHttpClient client = getClient(options, pinningConfig);
+      OkHttpClient client = getClient(options, pinner);
 
       Headers header = setHeader(options);
       String method = getMethod(options);
@@ -187,28 +198,12 @@ public class Sslpinning {
     return buffer.readByteArray();
   }
 
-  private CertificatePinner getCertificatePinner(ReadableMap options) {
-    CertificatePinner.Builder certificatePinner = new CertificatePinner.Builder();
-    ReadableArray hashes = options.getArray("certificates");
-
-    for (int i = 0; i < hashes.size(); i++) {
-      String pin = CryptoUtils.normalizePinHash(hashes.getString(i));
-      if (pin.isEmpty()) {
-        throw new IllegalArgumentException("Invalid certificate/public key pin at index " + i);
-      }
-      // OkHttp CertificatePinner pins SPKI SHA-256 hashes (public key pinning).
-      certificatePinner.add(this.hostname, "sha256/" + pin);
-    }
-
-    return certificatePinner.build();
-  }
-
-  private OkHttpClient getClient(ReadableMap options, PinningConfig pinningConfig) {
+  private OkHttpClient getClient(ReadableMap options, CertificatePinner pinner) {
     OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
-    // Fail-closed: once pinning is configured, OkHttp enforces pins with no system-trust fallback.
-    if (pinningConfig.isEnabled()) {
-      builder.certificatePinner(getCertificatePinner(options));
+    if (pinner != null) {
+      builder.certificatePinner(pinner);
+      builder.addNetworkInterceptor(PinningPolicy.hostInterceptor(pinner));
     }
 
     if (options.hasKey("timeout")) {
@@ -404,72 +399,4 @@ public class Sslpinning {
     return file;
   }
 
-  private boolean isValidDomain(String hostname, ReadableMap options) {
-    ReadableArray domains = options.getArray("validDomains");
-    if (domains == null || domains.size() == 0) {
-      return false;
-    }
-
-    for (int i = 0; i < domains.size(); i++) {
-      String domain = domains.getString(i);
-      if (domain == null || domain.trim().isEmpty()) {
-        continue;
-      }
-      String normalized = domain.trim().toLowerCase();
-      String host = hostname.toLowerCase();
-      if (host.equals(normalized) || host.endsWith("." + normalized)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static final class PinningConfig {
-    private final boolean enabled;
-    private final String error;
-
-    private PinningConfig(boolean enabled, String error) {
-      this.enabled = enabled;
-      this.error = error;
-    }
-
-    static PinningConfig fromOptions(ReadableMap options) {
-      boolean hasCertificates = options.hasKey("certificates");
-      boolean hasValidDomains = options.hasKey("validDomains");
-
-      if (hasCertificates != hasValidDomains) {
-        return new PinningConfig(
-            false,
-            "SSL pinning requires both 'certificates' (SPKI SHA-256 hashes) and 'validDomains'"
-        );
-      }
-
-      if (!hasCertificates) {
-        return new PinningConfig(false, null);
-      }
-
-      ReadableArray certs = options.getArray("certificates");
-      ReadableArray domains = options.getArray("validDomains");
-      if (certs == null || certs.size() == 0) {
-        return new PinningConfig(false, "At least one certificate/public key pin is required");
-      }
-      if (domains == null || domains.size() == 0) {
-        return new PinningConfig(false, "At least one valid domain is required");
-      }
-
-      return new PinningConfig(true, null);
-    }
-
-    boolean isEnabled() {
-      return enabled;
-    }
-
-    boolean hasError() {
-      return error != null;
-    }
-
-    String getError() {
-      return error;
-    }
-  }
 }

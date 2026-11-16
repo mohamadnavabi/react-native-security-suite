@@ -17,11 +17,17 @@ function parseNetworkEnvironment(
   };
 }
 
+/** One pinned host and the keys it may present. */
+export interface PinnedDomain {
+  domain: string;
+  pins: string[];
+  includeSubdomains?: boolean;
+}
+
 export interface PinningConfig {
-  /** Base64-encoded SPKI SHA-256 hashes (with or without the `sha256/` prefix). */
-  certificates: string[];
-  /** Allowed hostnames. Only requests whose host matches one of these are pinned. */
-  validDomains: string[];
+  pinnedDomains?: PinnedDomain[];
+  certificates?: string[];
+  validDomains?: string[];
 }
 
 export interface NetworkFetchOptions {
@@ -34,12 +40,29 @@ export interface NetworkFetchOptions {
 let _globalPinning: PinningConfig | null = null;
 let _uninstall: (() => void) | null = null;
 
+function toNativePinning(config: PinningConfig): PinningConfig {
+  const native: PinningConfig = {};
+  if (config.pinnedDomains !== undefined) {
+    native.pinnedDomains = config.pinnedDomains;
+  }
+  if (config.certificates !== undefined) {
+    native.certificates = config.certificates;
+  }
+  if (config.validDomains !== undefined) {
+    native.validDomains = config.validDomains;
+  }
+  if (Object.keys(native).length === 0) {
+    throw new TypeError(
+      'SSL pinning config requires `pinnedDomains` or `certificates` + `validDomains`'
+    );
+  }
+  return native;
+}
+
 function nativeFetch(
   url: string,
-  options: NetworkFetchOptions & {
-    certificates?: string[];
-    validDomains?: string[];
-  }
+  options: NetworkFetchOptions,
+  pinning: PinningConfig
 ): Promise<Response> {
   const native = NativeModules.SecuritySuite;
   return new Promise((resolve, reject) => {
@@ -50,8 +73,7 @@ function nativeFetch(
         headers: options.headers ?? {},
         body: options.body,
         timeout: options.timeout ?? 60,
-        certificates: options.certificates ?? [],
-        validDomains: options.validDomains ?? [],
+        ...pinning,
         loggerIsEnabled: false,
       },
       (result: any, error: any) => {
@@ -72,7 +94,6 @@ function nativeFetch(
 }
 
 export const NetworkSecurity = {
-  /** Report whether a VPN or proxy is active on the device right now. */
   getEnvironment(): Promise<NetworkEnvironment> {
     return getNativeModule()
       .networkGetEnvironment()
@@ -89,30 +110,22 @@ export const NetworkSecurity = {
     return environment.proxyDetected;
   },
 
-  /**
-   * Store a global pinning config used by `installFetchInterceptor()` and
-   * `createPinnedFetch()` when no per-call config is provided.
-   */
   configurePinning(config: PinningConfig): void {
+    toNativePinning(config);
     _globalPinning = config;
   },
 
-  /** Clear the stored global pinning config. */
   clearPinningConfig(): void {
     _globalPinning = null;
   },
 
-  /**
-   * Patch `global.fetch` so all outbound HTTPS calls are routed through the
-   * native SSL-pinned transport. Non-HTTPS calls pass through unchanged.
-   * Returns an uninstall function that restores the original `global.fetch`.
-   */
   installFetchInterceptor(config?: PinningConfig): () => void {
     if (_uninstall) {
       _uninstall();
     }
 
-    const pinning = config ?? _globalPinning;
+    const source = config ?? _globalPinning;
+    const pinning = source ? toNativePinning(source) : null;
     const original = global.fetch as typeof global.fetch;
 
     (global as any).fetch = (
@@ -123,14 +136,16 @@ export const NetworkSecurity = {
       if (!pinning || !url.startsWith('https://')) {
         return original(input, init);
       }
-      return nativeFetch(url, {
-        method: (init?.method as NetworkFetchOptions['method']) ?? 'GET',
-        headers: init?.headers as Record<string, string>,
-        body: init?.body as string,
-        timeout: 60,
-        certificates: pinning.certificates,
-        validDomains: pinning.validDomains,
-      });
+      return nativeFetch(
+        url,
+        {
+          method: (init?.method as NetworkFetchOptions['method']) ?? 'GET',
+          headers: init?.headers as Record<string, string>,
+          body: init?.body as string,
+          timeout: 60,
+        },
+        pinning
+      );
     };
 
     _uninstall = () => {
@@ -141,24 +156,15 @@ export const NetworkSecurity = {
     return _uninstall;
   },
 
-  /** Uninstall the global fetch interceptor (if installed). */
   uninstallFetchInterceptor(): void {
     _uninstall?.();
   },
 
-  /**
-   * Return a standalone `fetch`-compatible function that enforces the given
-   * pinning config without touching `global.fetch`.
-   */
   createPinnedFetch(
     config: PinningConfig
   ): (url: string, options?: NetworkFetchOptions) => Promise<Response> {
-    return (url, options = {}) =>
-      nativeFetch(url, {
-        ...options,
-        certificates: config.certificates,
-        validDomains: config.validDomains,
-      });
+    const pinning = toNativePinning(config);
+    return (url, options = {}) => nativeFetch(url, options, pinning);
   },
 };
 

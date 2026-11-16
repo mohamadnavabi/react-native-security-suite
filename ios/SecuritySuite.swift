@@ -754,9 +754,9 @@ class SecuritySuite: NSObject {
         }
 
         if pinningConfig.enabled {
-            guard let host = requestUrl.host,
-                  SSLPinning.hostnameMatchesValidDomains(host, validDomains: pinningConfig.validDomains) else {
-                callback([NSNull(), "Hostname is not in validDomains"])
+            let host = requestUrl.host ?? ""
+            guard pinningConfig.isPinned(host: host) else {
+                callback([NSNull(), "Hostname '\(host)' is not in the SSL pinning domains"])
                 return
             }
         }
@@ -797,7 +797,7 @@ class SecuritySuite: NSObject {
             return
         }
 
-        let sslPinning = SSLPinning(url: url, data: data, callback: callback)
+        let sslPinning = SSLPinning(url: url, data: data, config: pinningConfig, callback: callback)
         let session = URLSession(configuration: configuration, delegate: sslPinning, delegateQueue: .main)
         sslPinning.reportRequestStartToDevTools(request)
         session.dataTask(with: request).resume()

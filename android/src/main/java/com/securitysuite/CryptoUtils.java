@@ -141,13 +141,6 @@ public final class CryptoUtils {
     }
   }
 
-  public static String normalizePinHash(String pin) {
-    if (pin == null) {
-      return "";
-    }
-    return pin.trim().replaceAll("(?i)^sha256/", "");
-  }
-
   public static void validateJwsHeaderKey(String key) throws IllegalArgumentException {
     if (key == null || !SAFE_JWS_HEADER_KEY.matcher(key).matches()) {
       throw new IllegalArgumentException("Invalid JWS header key: " + key);

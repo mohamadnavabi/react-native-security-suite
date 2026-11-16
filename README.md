@@ -523,16 +523,17 @@ Route all outbound `fetch` calls through the native SSL-pinned transport.
 ```typescript
 import { NetworkSecurity } from 'react-native-security-suite';
 
-// Configure once at app startup
 NetworkSecurity.configurePinning({
-  certificates: ['sha256/AAAA…=', 'sha256/BBBB…='],
-  validDomains: ['api.example.com'],
+  pinnedDomains: [
+    { domain: 'api.example.com', pins: ['sha256/AAAA…=', 'sha256/BBBB…='] },
+    { domain: 'example-cdn.net', pins: ['sha256/CCCC…=', 'sha256/DDDD…='], includeSubdomains: true },
+  ],
 });
 
 // Install the interceptor — returns an uninstall function
 const uninstall = NetworkSecurity.installFetchInterceptor();
 
-// Any subsequent fetch('https://api.example.com/…') is now pinned
+// Any subsequent fetch('https://api.example.com/…') is now pinned.
 const res = await fetch('https://api.example.com/data');
 
 // Restore original fetch when done (e.g. in tests)
@@ -547,8 +548,7 @@ Use `createPinnedFetch` when you want pinning only for specific calls.
 import { NetworkSecurity } from 'react-native-security-suite';
 
 const pinnedFetch = NetworkSecurity.createPinnedFetch({
-  certificates: ['sha256/AAAA…='],
-  validDomains: ['api.example.com'],
+  pinnedDomains: [{ domain: 'api.example.com', pins: ['sha256/AAAA…=', 'sha256/BBBB…='] }],
 });
 
 const res = await pinnedFetch('https://api.example.com/resource', {
@@ -565,10 +565,14 @@ import { fetch } from 'react-native-security-suite';
 await fetch('https://api.example.com/secure', {
   method: 'GET',
   headers: {},
-  certificates: ['sha256/AAAA…='],
-  validDomains: ['api.example.com'],
+  pinnedDomains: [
+    { domain: 'api.example.com', pins: ['sha256/AAAA…=', 'sha256/BBBB…='] },
+    { domain: 'auth.example.com', pins: ['sha256/CCCC…=', 'sha256/DDDD…='] },
+  ],
 });
 ```
+
+The older `certificates` + `validDomains` pair still works. It applies every pin to every listed domain and its subdomains, so prefer `pinnedDomains` whenever your hosts use different keys. See [docs/ssl-pinning.md](docs/ssl-pinning.md) for matching rules, redirects, and how to extract pins.
 
 ### Cleartext HTTP in development
 
@@ -582,7 +586,7 @@ await fetch('http://192.168.1.20:8080/api/me', {
 });
 ```
 
-`allowCleartext` is `false` by default, is refused when `certificates`/`validDomains` are set, and does not override the platform's cleartext policy: Android's network security config and iOS App Transport Security must still permit the host.
+`allowCleartext` is `false` by default, is refused when any SSL pinning option is set, and does not override the platform's cleartext policy: Android's network security config and iOS App Transport Security must still permit the host.
 
 ---
 
@@ -828,7 +832,7 @@ Extends `SecureStorage` with biometric options, expiry, and rotation. All method
 | `uninstallFetchInterceptor()` | Restore original `global.fetch`. |
 | `createPinnedFetch(config)` | Return a standalone pinned fetch function. |
 
-`PinningConfig`: `{ certificates: string[], validDomains: string[] }`
+`PinningConfig`: `{ pinnedDomains?: { domain, pins, includeSubdomains? }[], certificates?: string[], validDomains?: string[] }`. Use `pinnedDomains` (per-domain pins) or the shared `certificates` + `validDomains` pair, or both.
 
 ### ClipboardGuard
 
